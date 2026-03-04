@@ -59,6 +59,17 @@ class AudioEngine {
     this.stop()
 
     if (type === 'sine') {
+      // Generate a 4-second sine buffer for export support
+      const duration = 4
+      const sampleRate = this.ctx!.sampleRate
+      const length = sampleRate * duration
+      const sineBuffer = this.ctx!.createBuffer(1, length, sampleRate)
+      const data = sineBuffer.getChannelData(0)
+      for (let i = 0; i < length; i++) {
+        data[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate)
+      }
+      this.audioBuffer = sineBuffer
+
       const osc = this.ctx!.createOscillator()
       osc.type = 'sine'
       osc.frequency.value = 440
@@ -67,6 +78,7 @@ class AudioEngine {
       this.currentSource = osc
     } else {
       const buffer = createPinkNoiseBuffer(this.ctx!)
+      this.audioBuffer = buffer
       const source = this.ctx!.createBufferSource()
       source.buffer = buffer
       source.loop = true
@@ -98,6 +110,14 @@ class AudioEngine {
   setVolume(volume: number): void {
     if (!this.gainNode) return
     this.gainNode.gain.value = volume
+  }
+
+  getAudioBuffer(): AudioBuffer | null {
+    return this.audioBuffer
+  }
+
+  getVolume(): number {
+    return this.gainNode?.gain.value ?? 1
   }
 
   getAnalyser(): AnalyserNode | null {

@@ -16,8 +16,14 @@ export interface AudioFileResult {
   name: string
 }
 
+export interface SaveWavResult {
+  saved: boolean
+  path?: string
+}
+
 export interface ElectronAPI {
   openAudioFile: () => Promise<AudioFileResult | null>
+  saveWavFile: (buffer: ArrayBuffer) => Promise<SaveWavResult>
 }
 
 declare global {

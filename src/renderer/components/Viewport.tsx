@@ -4,6 +4,8 @@ import { Room } from './Room'
 import { Listener } from './Listener'
 import { SoundSource } from './SoundSource'
 import { AudioBridge } from './AudioBridge'
+import { DistanceRings } from './DistanceRings'
+import { AudioVisualizer } from './AudioVisualizer'
 
 export function Viewport() {
   return (
@@ -19,6 +21,8 @@ export function Viewport() {
       <Listener />
       <SoundSource />
       <AudioBridge />
+      <DistanceRings />
+      <AudioVisualizer />
     </Canvas>
   )
 }

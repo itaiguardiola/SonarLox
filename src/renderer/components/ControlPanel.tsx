@@ -1,12 +1,30 @@
+import { useState } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { audioEngine } from '../audio/AudioEngine'
+import { exportBinauralWav } from '../audio/Exporter'
 
 export function ControlPanel() {
   const sourcePosition = useAppStore((s) => s.sourcePosition)
   const isPlaying = useAppStore((s) => s.isPlaying)
   const audioFileName = useAppStore((s) => s.audioFileName)
   const setIsPlaying = useAppStore((s) => s.setIsPlaying)
+  const volume = useAppStore((s) => s.volume)
   const setAudioFileName = useAppStore((s) => s.setAudioFileName)
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExport = async () => {
+    const buffer = audioEngine.getAudioBuffer()
+    if (!buffer) return
+    setIsExporting(true)
+    try {
+      const wav = await exportBinauralWav(buffer, sourcePosition, volume)
+      await window.api.saveWavFile(wav)
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   const handleLoadAudio = async () => {
     try {
@@ -75,6 +93,17 @@ export function ControlPanel() {
             Stop
           </button>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Export</label>
+        <button
+          onClick={handleExport}
+          disabled={!audioFileName || isExporting}
+          style={btnStyle}
+        >
+          {isExporting ? 'Exporting...' : 'Export WAV'}
+        </button>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

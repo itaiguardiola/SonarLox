@@ -1,5 +1,15 @@
 import { ipcMain, dialog } from 'electron'
-import { readFile } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
+
+ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer) => {
+  const result = await dialog.showSaveDialog({
+    filters: [{ name: 'WAV Audio', extensions: ['wav'] }],
+    defaultPath: 'export.wav'
+  })
+  if (result.canceled || !result.filePath) return { saved: false }
+  await writeFile(result.filePath, Buffer.from(wavBuffer))
+  return { saved: true, path: result.filePath }
+})
 
 ipcMain.handle('open-audio-file', async () => {
   const result = await dialog.showOpenDialog({
