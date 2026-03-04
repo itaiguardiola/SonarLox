@@ -4,6 +4,7 @@ import { Billboard } from '@react-three/drei'
 import { Color, type Mesh, type MeshBasicMaterial } from 'three'
 import { audioEngine } from '../audio/AudioEngine'
 import { useAppStore } from '../stores/useAppStore'
+import type { SourceId } from '../types'
 
 const BAR_COUNT = 16
 const BAR_WIDTH = 0.06
@@ -14,7 +15,11 @@ const Y_OFFSET = 0.6
 const lowColor = new Color('#22cc44')
 const highColor = new Color('#ff8800')
 
-export function AudioVisualizer() {
+interface AudioVisualizerProps {
+  sourceId: SourceId
+}
+
+export function AudioVisualizer({ sourceId }: AudioVisualizerProps) {
   const groupRef = useRef<import('three').Group>(null)
   const barRefs = useRef<(Mesh | null)[]>([])
   const dataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
@@ -24,7 +29,7 @@ export function AudioVisualizer() {
   )
 
   useEffect(() => {
-    const analyser = audioEngine.getAnalyser()
+    const analyser = audioEngine.getAnalyser(sourceId)
     analyserRef.current = analyser
     if (analyser) {
       dataRef.current = new Uint8Array(analyser.frequencyBinCount)
@@ -32,13 +37,15 @@ export function AudioVisualizer() {
   })
 
   useFrame(() => {
-    // Read position from store without subscribing (no re-render)
-    const [sx, sy, sz] = useAppStore.getState().sourcePosition
+    const source = useAppStore.getState().sources.find((s) => s.id === sourceId)
+    if (!source) return
+
+    const [sx, sy, sz] = source.position
     if (groupRef.current) {
       groupRef.current.position.set(sx, sy + Y_OFFSET, sz)
     }
 
-    const analyser = analyserRef.current ?? audioEngine.getAnalyser()
+    const analyser = analyserRef.current ?? audioEngine.getAnalyser(sourceId)
     if (!analyser) return
 
     if (!dataRef.current) {
@@ -78,7 +85,9 @@ export function AudioVisualizer() {
         {Array.from({ length: BAR_COUNT }, (_, i) => (
           <mesh
             key={i}
-            ref={(el) => { barRefs.current[i] = el }}
+            ref={(el) => {
+              barRefs.current[i] = el
+            }}
             position={[startX + i * (BAR_WIDTH + BAR_GAP), 0, 0]}
           >
             <boxGeometry args={[BAR_WIDTH, 1, BAR_WIDTH]} />

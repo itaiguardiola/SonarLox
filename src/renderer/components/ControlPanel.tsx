@@ -1,96 +1,88 @@
 import { useState } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { audioEngine } from '../audio/AudioEngine'
-import { exportBinauralWav } from '../audio/Exporter'
+import { exportBinauralWav, exportMixedBinauralWav } from '../audio/Exporter'
+import { SourceList } from './SourceList'
 
 export function ControlPanel() {
-  const sourcePosition = useAppStore((s) => s.sourcePosition)
   const isPlaying = useAppStore((s) => s.isPlaying)
-  const audioFileName = useAppStore((s) => s.audioFileName)
   const setIsPlaying = useAppStore((s) => s.setIsPlaying)
-  const volume = useAppStore((s) => s.volume)
-  const setVolume = useAppStore((s) => s.setVolume)
   const isLooping = useAppStore((s) => s.isLooping)
   const setIsLooping = useAppStore((s) => s.setIsLooping)
   const listenerY = useAppStore((s) => s.listenerY)
   const setListenerY = useAppStore((s) => s.setListenerY)
-  const setAudioFileName = useAppStore((s) => s.setAudioFileName)
-  const sineFrequency = useAppStore((s) => s.sineFrequency)
-  const setSineFrequency = useAppStore((s) => s.setSineFrequency)
   const cameraPresets = useAppStore((s) => s.cameraPresets)
   const setCameraCommand = useAppStore((s) => s.setCameraCommand)
+
+  const selectedSourceId = useAppStore((s) => s.selectedSourceId)
+  const selectedSource = useAppStore((s) =>
+    s.sources.find((src) => src.id === s.selectedSourceId)
+  )
+  const setSourceVolume = useAppStore((s) => s.setSourceVolume)
+  const setSourceAudioFileName = useAppStore((s) => s.setSourceAudioFileName)
+  const setSourceSineFrequency = useAppStore((s) => s.setSourceSineFrequency)
+
   const [isExporting, setIsExporting] = useState(false)
 
-  const handleExport = async () => {
-    const buffer = audioEngine.getAudioBuffer()
-    if (!buffer) return
-    setIsExporting(true)
-    try {
-      const wav = await exportBinauralWav(buffer, sourcePosition, volume)
-      await window.api.saveWavFile(wav)
-    } catch (err) {
-      console.error('Export failed:', err)
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   const handleLoadAudio = async () => {
+    if (!selectedSourceId) return
     try {
       if (!window.api) {
-        console.error('window.api is not defined — preload may not have run')
+        console.error('window.api is not defined')
         return
       }
       const result = await window.api.openAudioFile()
       if (!result) return
-      await audioEngine.loadFile(result.buffer)
-      setAudioFileName(result.name ?? 'audio file')
+      await audioEngine.loadFile(selectedSourceId, result.buffer)
+      setSourceAudioFileName(selectedSourceId, result.name ?? 'audio file')
     } catch (err) {
       console.error('Failed to load audio:', err)
     }
   }
 
   const handlePlay = () => {
-    if (audioEngine.isPaused()) {
-      audioEngine.resume()
-    } else {
-      audioEngine.play()
-    }
+    audioEngine.playAll()
     setIsPlaying(true)
   }
 
   const handlePause = () => {
-    audioEngine.pause()
+    audioEngine.pauseAll()
     setIsPlaying(false)
   }
 
   const handleStop = () => {
-    audioEngine.stop()
+    audioEngine.stopAll()
     setIsPlaying(false)
   }
 
   const handleTestTone = async (type: 'sine' | 'pink-noise') => {
-    await audioEngine.playTestTone(type)
+    if (!selectedSourceId) return
+    await audioEngine.playTestTone(selectedSourceId, type)
     setIsPlaying(true)
-    setAudioFileName(type === 'sine' ? `Sine ${Math.round(sineFrequency)} Hz` : 'Pink Noise')
+    const freq = selectedSource?.sineFrequency ?? 440
+    setSourceAudioFileName(
+      selectedSourceId,
+      type === 'sine' ? `Sine ${Math.round(freq)} Hz` : 'Pink Noise'
+    )
   }
 
   const freqFromSlider = (v: number) => 20 * Math.pow(200, v)
   const sliderFromFreq = (f: number) => Math.log(f / 20) / Math.log(200)
 
   const handleFrequencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedSourceId) return
     const freq = Math.round(freqFromSlider(parseFloat(e.target.value)))
-    setSineFrequency(freq)
-    audioEngine.setSineFrequency(freq)
-    if (isPlaying && audioFileName?.startsWith('Sine')) {
-      setAudioFileName(`Sine ${freq} Hz`)
+    setSourceSineFrequency(selectedSourceId, freq)
+    audioEngine.setSineFrequency(selectedSourceId, freq)
+    if (isPlaying && selectedSource?.audioFileName?.startsWith('Sine')) {
+      setSourceAudioFileName(selectedSourceId, `Sine ${freq} Hz`)
     }
   }
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedSourceId) return
     const v = parseFloat(e.target.value)
-    setVolume(v)
-    audioEngine.setVolume(v)
+    setSourceVolume(selectedSourceId, v)
   }
 
   const handleLoopToggle = () => {
@@ -99,89 +91,213 @@ export function ControlPanel() {
     audioEngine.setLooping(next)
   }
 
+  const handleExportMix = async () => {
+    const sources = useAppStore.getState().sources
+    const exportSources = sources
+      .filter((s) => !s.isMuted)
+      .map((s) => {
+        const buf = audioEngine.getAudioBuffer(s.id)
+        return buf ? { audioBuffer: buf, position: s.position, volume: s.volume } : null
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+
+    if (exportSources.length === 0) return
+    setIsExporting(true)
+    try {
+      const wav = await exportMixedBinauralWav(exportSources)
+      await window.api.saveWavFile(wav)
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportPerSource = async () => {
+    const sources = useAppStore.getState().sources
+    setIsExporting(true)
+    try {
+      for (const source of sources) {
+        if (source.isMuted) continue
+        const buf = audioEngine.getAudioBuffer(source.id)
+        if (!buf) continue
+        const wav = await exportBinauralWav(buf, source.position, source.volume)
+        const filename = `${source.label}${source.audioFileName ? ' - ' + source.audioFileName : ''}.wav`
+        await window.api.saveWavFile(wav, filename)
+      }
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const sineFrequency = selectedSource?.sineFrequency ?? 440
+  const volume = selectedSource?.volume ?? 1
+  const sourcePosition = selectedSource?.position ?? [0, 0, 0]
+  const hasAnyAudio = audioEngine.hasAnyBuffer()
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <h2 style={{ margin: 0, fontSize: 20 }}>SonarLox</h2>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Source</label>
-        <button onClick={handleLoadAudio} style={btnStyle}>
-          Load Audio
-        </button>
-        {audioFileName && (
-          <span style={{ fontSize: 12, opacity: 0.7 }}>{audioFileName}</span>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Test Tones</label>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => handleTestTone('sine')} style={btnStyle}>
-            Sine
-          </button>
-          <button onClick={() => handleTestTone('pink-noise')} style={btnStyle}>
-            Pink Noise
-          </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Brand */}
+      <div style={{ paddingBottom: 2 }}>
+        <h2 className="logo">
+          Sonar<span className="logo-accent">Lox</span>
+        </h2>
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 9,
+          color: 'var(--text-muted)',
+          letterSpacing: '1px',
+          marginTop: 2,
+        }}>
+          SPATIAL AUDIO EDITOR
         </div>
-        <label style={{ fontSize: 11, opacity: 0.5 }}>
-          Sine — {Math.round(sineFrequency)} Hz
-        </label>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.001}
-          value={sliderFromFreq(sineFrequency)}
-          onChange={handleFrequencyChange}
-          style={{ width: '100%', cursor: 'pointer' }}
-        />
       </div>
 
+      <div className="divider" />
+
+      {/* Source List */}
+      <SourceList />
+
+      <div className="divider" />
+
+      {/* Selected Source Controls */}
+      {selectedSource && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: selectedSource.color,
+                  boxShadow: `0 0 6px ${selectedSource.color}88`,
+                }}
+              />
+              <span className="section-label" style={{ paddingBottom: 0 }}>
+                {selectedSource.label}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn" onClick={handleLoadAudio} style={{ flex: 1 }}>
+                Load Audio
+              </button>
+            </div>
+            {selectedSource.audioFileName && (
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                color: 'var(--text-secondary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {selectedSource.audioFileName}
+              </span>
+            )}
+          </div>
+
+          {/* Test Tones */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span className="section-label">Test Tones</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn" onClick={() => handleTestTone('sine')} style={{ flex: 1 }}>
+                Sine
+              </button>
+              <button className="btn" onClick={() => handleTestTone('pink-noise')} style={{ flex: 1 }}>
+                Pink Noise
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Frequency</span>
+              <span className="slider-value">{Math.round(sineFrequency)} Hz</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.001}
+              value={sliderFromFreq(sineFrequency)}
+              onChange={handleFrequencyChange}
+            />
+          </div>
+
+          {/* Volume */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span className="section-label" style={{ paddingBottom: 0 }}>Volume</span>
+              <span className="slider-value">{Math.round(volume * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={handleVolumeChange}
+            />
+          </div>
+
+          {/* Position Readout */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span className="section-label">Position</span>
+            <div className="readout">
+              <span style={{ color: 'var(--accent-red)', opacity: 0.7 }}>X</span>{' '}
+              {sourcePosition[0].toFixed(2)}{' '}
+              <span style={{ color: 'var(--accent-teal)', opacity: 0.7, marginLeft: 8 }}>Y</span>{' '}
+              {sourcePosition[1].toFixed(2)}{' '}
+              <span style={{ color: 'var(--accent-amber)', opacity: 0.7, marginLeft: 8 }}>Z</span>{' '}
+              {sourcePosition[2].toFixed(2)}
+            </div>
+          </div>
+
+          <div className="divider" />
+        </>
+      )}
+
+      {/* Transport */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Transport</label>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={handlePlay} disabled={!audioFileName || isPlaying} style={btnStyle}>
+        <span className="section-label">Transport</span>
+        <div style={{ display: 'flex', gap: 5 }}>
+          <button
+            className={`btn btn--transport ${isPlaying ? '' : 'btn--accent'}`}
+            onClick={handlePlay}
+            disabled={!hasAnyAudio || isPlaying}
+          >
             Play
           </button>
-          <button onClick={handlePause} disabled={!isPlaying} style={btnStyle}>
+          <button
+            className="btn btn--transport"
+            onClick={handlePause}
+            disabled={!isPlaying}
+          >
             Pause
           </button>
-          <button onClick={handleStop} disabled={!isPlaying && !audioEngine.isPaused()} style={btnStyle}>
+          <button
+            className="btn btn--transport btn--danger-subtle"
+            onClick={handleStop}
+            disabled={!isPlaying && !audioEngine.hasAnyPaused()}
+          >
             Stop
           </button>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>
-          Volume — {Math.round(volume * 100)}%
-        </label>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={volume}
-          onChange={handleVolumeChange}
-          style={{ width: '100%', cursor: 'pointer' }}
-        />
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Loop</label>
-        <button onClick={handleLoopToggle} style={{
-          ...btnStyle,
-          background: isLooping ? '#2a2a4e' : '#1a1a2e',
-          borderColor: isLooping ? '#6a6aff' : '#444'
-        }}>
-          {isLooping ? 'Loop: On' : 'Loop: Off'}
+        <button
+          className={`btn ${isLooping ? 'btn--active' : ''}`}
+          onClick={handleLoopToggle}
+          style={{ fontSize: 11 }}
+        >
+          {isLooping ? 'Loop ON' : 'Loop OFF'}
         </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>
-          Listener Height — {listenerY.toFixed(1)}
-        </label>
+      {/* Listener Height */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="section-label" style={{ paddingBottom: 0 }}>Listener Height</span>
+          <span className="slider-value">{listenerY.toFixed(1)}</span>
+        </div>
         <input
           type="range"
           min={0}
@@ -189,30 +305,45 @@ export function ControlPanel() {
           step={0.1}
           value={listenerY}
           onChange={(e) => setListenerY(parseFloat(e.target.value))}
-          style={{ width: '100%', cursor: 'pointer' }}
         />
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Export</label>
+      <div className="divider" />
+
+      {/* Export */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span className="section-label">Export</span>
         <button
-          onClick={handleExport}
-          disabled={!audioFileName || isExporting}
-          style={btnStyle}
+          className="btn btn--accent"
+          onClick={handleExportMix}
+          disabled={!hasAnyAudio || isExporting}
+          style={{ flex: 'none' }}
         >
-          {isExporting ? 'Exporting...' : 'Export WAV'}
+          {isExporting ? 'Exporting...' : 'Export Mix'}
+        </button>
+        <button
+          className="btn"
+          onClick={handleExportPerSource}
+          disabled={!hasAnyAudio || isExporting}
+          style={{ flex: 'none' }}
+        >
+          Export Per-Source
         </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Camera</label>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setCameraCommand({ type: 'home' })} style={btnStyle}>
+      <div className="divider" />
+
+      {/* Camera */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span className="section-label">Camera</span>
+        <div style={{ display: 'flex', gap: 5 }}>
+          <button className="btn" onClick={() => setCameraCommand({ type: 'home' })} style={{ flex: 1 }}>
             Home
           </button>
           {[0, 1, 2, 3].map((i) => (
             <button
               key={i}
+              className={`btn preset-btn ${cameraPresets[i] ? 'preset-btn--filled btn--active' : ''}`}
               onClick={(e) => {
                 if (e.shiftKey) {
                   setCameraCommand({ type: 'save', index: i })
@@ -220,39 +351,24 @@ export function ControlPanel() {
                   setCameraCommand({ type: 'recall', index: i })
                 }
               }}
-              style={{
-                ...btnStyle,
-                minWidth: 36,
-                background: cameraPresets[i] ? '#2a2a4e' : '#1a1a2e',
-                borderColor: cameraPresets[i] ? '#6a6aff' : '#444'
-              }}
+              style={{ minWidth: 34, flex: 'none', textAlign: 'center' }}
             >
               {i + 1}
             </button>
           ))}
         </div>
-        <span style={{ fontSize: 10, opacity: 0.35 }}>Shift+click to save</span>
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 9,
+          color: 'var(--text-muted)',
+          letterSpacing: '0.5px',
+        }}>
+          SHIFT+CLICK TO SAVE
+        </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase' }}>Position</label>
-        <div style={{ fontFamily: 'monospace', fontSize: 13 }}>
-          X: {sourcePosition[0].toFixed(2)}{' '}
-          Y: {sourcePosition[1].toFixed(2)}{' '}
-          Z: {sourcePosition[2].toFixed(2)}
-        </div>
-      </div>
+      {/* Bottom spacer for scroll */}
+      <div style={{ height: 8 }} />
     </div>
   )
-}
-
-const btnStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '8px 12px',
-  background: '#1a1a2e',
-  border: '1px solid #444',
-  borderRadius: 4,
-  color: '#e0e0e0',
-  cursor: 'pointer',
-  fontSize: 13
 }

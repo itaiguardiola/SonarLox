@@ -1,10 +1,10 @@
 import { ipcMain, dialog } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 
-ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer) => {
+ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer, defaultPath?: string) => {
   const result = await dialog.showSaveDialog({
     filters: [{ name: 'WAV Audio', extensions: ['wav'] }],
-    defaultPath: 'export.wav'
+    defaultPath: defaultPath ?? 'export.wav'
   })
   if (result.canceled || !result.filePath) return { saved: false }
   await writeFile(result.filePath, Buffer.from(wavBuffer))

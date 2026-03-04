@@ -22,8 +22,7 @@ function makeCirclePoints(radius: number): Vector3[] {
 export function DistanceRings() {
   const ringRefs = useRef<(Line2 | null)[]>([])
 
-  // Ground projection line: raw BufferGeometry updated imperatively
-  const projPositions = useMemo(() => new Float32Array(6), []) // 2 points x 3 coords
+  const projPositions = useMemo(() => new Float32Array(6), [])
   const projGeometry = useMemo(() => {
     const geo = new BufferGeometry()
     geo.setAttribute('position', new Float32BufferAttribute(projPositions, 3))
@@ -38,17 +37,19 @@ export function DistanceRings() {
     [projGeometry, projMaterial]
   )
 
-  // Static ring points -- never change
   const circles = useMemo(
     () => RING_RADII.map((r) => makeCirclePoints(r)),
     []
   )
 
   useFrame(() => {
-    const [x, y, z] = useAppStore.getState().sourcePosition
+    const state = useAppStore.getState()
+    const selected = state.sources.find((s) => s.id === state.selectedSourceId)
+    if (!selected) return
+
+    const [x, y, z] = selected.position
     const distance = Math.sqrt(x * x + y * y + z * z)
 
-    // Find closest ring
     let closestIndex = 0
     let bestDiff = Math.abs(RING_RADII[0] - distance)
     for (let i = 1; i < RING_RADII.length; i++) {
@@ -59,7 +60,6 @@ export function DistanceRings() {
       }
     }
 
-    // Update ring materials imperatively
     for (let i = 0; i < ringRefs.current.length; i++) {
       const line = ringRefs.current[i]
       if (!line) continue
@@ -70,9 +70,6 @@ export function DistanceRings() {
       mat.linewidth = isActive ? 1.5 : 0.8
     }
 
-    // Update ground projection line endpoints
-    // Point 0: origin (0, 0, 0) -- already zeros in the array
-    // Point 1: ground projection of source
     projPositions[3] = x
     projPositions[4] = 0
     projPositions[5] = z
