@@ -1,4 +1,4 @@
-import { useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { DragControls } from '@react-three/drei'
 import { useThree, useFrame } from '@react-three/fiber'
 import { Vector3, type Mesh, type Matrix4, type MeshStandardMaterial } from 'three'
@@ -18,16 +18,11 @@ export function SoundSource() {
   const controls = useThree((s) => s.controls) as { enabled: boolean } | null
   const lastStoreUpdate = useRef(0)
 
+  // Read once for initial position prop (not a subscription -- no re-renders)
+  const initialPosition = useRef(useAppStore.getState().sourcePosition).current
+
   const analyserRef = useRef<AnalyserNode | null>(null)
   const timeDomainRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
-
-  // Set initial mesh position from store on mount (layout to avoid flash)
-  useLayoutEffect(() => {
-    const pos = useAppStore.getState().sourcePosition
-    if (meshRef.current) {
-      meshRef.current.position.set(pos[0], pos[1], pos[2])
-    }
-  }, [])
 
   useEffect(() => {
     const analyser = audioEngine.getAnalyser()
@@ -103,7 +98,7 @@ export function SoundSource() {
         commitPosition(_pos.x, _pos.y, _pos.z, false)
       }}
     >
-      <mesh ref={meshRef}>
+      <mesh ref={meshRef} position={initialPosition}>
         <sphereGeometry args={[0.3, 32, 32]} />
         <meshStandardMaterial color="#ff6622" emissive="#ff6622" emissiveIntensity={0.3} />
       </mesh>
