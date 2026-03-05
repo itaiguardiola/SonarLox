@@ -15,15 +15,21 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
 - Named exports for components, default export for pages/layouts
 - Destructure imports (`import { useState } from 'react'`)
 - Avoid `any` — use proper types from src/renderer/types/
-- Audio engine is a singleton class in src/renderer/audio/AudioEngine.ts
+- Audio engine is a singleton class in src/renderer/audio/WebAudioEngine.ts (implements IAudioEngine interface)
 
 ## Key Architecture
 - Main process (src/main/) handles file dialogs and IPC only
 - Renderer process (src/renderer/) has all UI and audio logic
-- Zustand store (src/renderer/stores/useAppStore.ts) is source of truth for source position, playback state, listener height
+- Zustand stores:
+  - `useAppStore` (src/renderer/stores/useAppStore.ts) — source of truth for sources, positions, volume, mute/solo, master volume, output device, camera
+  - `useTransportStore` (src/renderer/stores/useTransportStore.ts) — transport state (play/pause/stop/seek/loop), playhead position via rAF loop
+- Audio graph: per-source gain -> panner(HRTF) -> analyser -> masterGain -> masterAnalyser -> destination
 - 3D source position syncs to Web Audio PannerNode on every frame via AudioBridge
+- AudioBridge also handles solo logic (if any soloed, non-soloed get gain=0) and master volume
 - Listener Y position syncs to Web Audio AudioListener via AudioBridge
 - AnalyserNode provides waveform data for visual feedback
+- TimelinePanel shows per-source waveforms with shared playhead, click-to-scrub
+- Keyboard shortcuts (App.tsx): Space=play/pause, 1-8=select source, Delete=remove source
 
 ## Performance Pattern: Zustand Transient Updates
 - Components that read position in useFrame use `useAppStore.getState()` (no subscription, no re-render)
@@ -45,6 +51,11 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
 - Test pause/resume: pause mid-track, resume from same position
 - Test loop toggle: turn off loop, confirm audio stops at end
 - Test listener height: slide listener Y, confirm spatial audio changes
+- Test solo: solo one source, only that source audible; mute+solo = silent
+- Test timeline: playhead moves during playback, click to scrub, waveforms render
+- Test master volume: slider affects overall output
+- Test device selector: dropdown lists available audio output devices
+- Test keyboard shortcuts: Space toggles play, 1-8 selects sources, Delete removes
 
 ## Model Routing
 
