@@ -6,10 +6,16 @@ import { Listener } from './Listener'
 import { SoundSource } from './SoundSource'
 import { AudioBridge } from './AudioBridge'
 import { DistanceRings } from './DistanceRings'
+import { MotionPath } from './MotionPath'
 import { AudioVisualizer } from './AudioVisualizer'
 import { CameraManager } from './CameraManager'
 import { useAppStore } from '../stores/useAppStore'
 
+/**
+ * Main 3D viewport component for the SonarLox spatial audio editor.
+ * Renders the 3D scene with room, listener, sound sources, and visualizations.
+ * Uses React Three Fiber for rendering and OrbitControls for camera navigation.
+ */
 export function Viewport() {
   const sourceIds = useAppStore(useShallow((s) => s.sources.map((src) => src.id)))
 
@@ -30,6 +36,7 @@ export function Viewport() {
       ))}
       <AudioBridge />
       <DistanceRings />
+      <MotionPath />
       {sourceIds.map((id) => (
         <AudioVisualizer key={id} sourceId={id} />
       ))}
