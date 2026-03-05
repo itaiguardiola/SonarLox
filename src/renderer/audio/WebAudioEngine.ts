@@ -2,6 +2,9 @@ import type { SourceId } from '../types'
 import type { IAudioEngine, AnalyserSnapshot } from './IAudioEngine'
 import { createPinkNoiseBuffer } from './TestTones'
 
+/**
+ * Manages a single audio source channel with spatialization and playback controls.
+ */
 class SourceChannel {
   gainNode: GainNode
   pannerNode: PannerNode
@@ -33,6 +36,9 @@ class SourceChannel {
     this.analyserNode.connect(masterGain)
   }
 
+  /**
+   * Starts playback of the audio buffer.
+   */
   play(isLooping: boolean, startTime?: number): void {
     if (!this.audioBuffer) return
     this.stopSource()
@@ -61,6 +67,9 @@ class SourceChannel {
     }
   }
 
+  /**
+   * Plays a test tone (sine or pink noise) for the source.
+   */
   playTestTone(type: 'sine' | 'pink-noise', isLooping: boolean): void {
     this.stop()
 
@@ -97,6 +106,9 @@ class SourceChannel {
     }
   }
 
+  /**
+   * Pauses playback of the audio source.
+   */
   pause(): void {
     if (!this.currentSource) return
     if (!this.isOscillator && this.audioBuffer) {
@@ -106,15 +118,24 @@ class SourceChannel {
     this.stopSource()
   }
 
+  /**
+   * Resumes playback of the audio source.
+   */
   resume(isLooping: boolean): void {
     this.play(isLooping)
   }
 
+  /**
+   * Stops playback of the audio source.
+   */
   stop(): void {
     this.stopSource()
     this.pauseOffset = 0
   }
 
+  /**
+   * Internal method to stop and disconnect the current audio source.
+   */
   private stopSource(): void {
     if (this.currentSource) {
       try {
@@ -127,6 +148,9 @@ class SourceChannel {
     }
   }
 
+  /**
+   * Sets whether the audio source loops.
+   */
   setLooping(loop: boolean): void {
     if (
       this.currentSource &&
@@ -137,6 +161,9 @@ class SourceChannel {
     }
   }
 
+  /**
+   * Sets the frequency of the sine oscillator.
+   */
   setSineFrequency(freq: number): void {
     this.sineFrequency = freq
     if (this.isOscillator && this.currentSource instanceof OscillatorNode) {
@@ -155,24 +182,39 @@ class SourceChannel {
     }
   }
 
+  /**
+   * Checks if the audio source is currently paused.
+   */
   isPaused(): boolean {
     return this.pauseOffset > 0 && this.currentSource === null
   }
 
+  /**
+   * Sets the 3D position of the audio source.
+   */
   setPosition(x: number, y: number, z: number): void {
     this.pannerNode.positionX.value = x
     this.pannerNode.positionY.value = y
     this.pannerNode.positionZ.value = z
   }
 
+  /**
+   * Sets the volume of the audio source.
+   */
   setVolume(volume: number): void {
     this.gainNode.gain.value = volume
   }
 
+  /**
+   * Sets the mute state of the audio source.
+   */
   setMuted(muted: boolean): void {
     this.gainNode.gain.value = muted ? 0 : 1
   }
 
+  /**
+   * Disposes of the audio resources for this channel.
+   */
   dispose(): void {
     this.stop()
     this.gainNode.disconnect()
@@ -181,6 +223,9 @@ class SourceChannel {
   }
 }
 
+/**
+ * Implements the audio engine using Web Audio API for spatial audio playback.
+ */
 class WebAudioEngine implements IAudioEngine {
   private ctx: AudioContext | null = null
   private channels: Map<SourceId, SourceChannel> = new Map()
@@ -191,6 +236,9 @@ class WebAudioEngine implements IAudioEngine {
   private _isPlaying: boolean = false
   private soloedIds: Set<SourceId> = new Set()
 
+  /**
+   * Initializes the audio context and creates necessary nodes.
+   */
   async init(): Promise<void> {
     if (!this.ctx) {
       this.ctx = new AudioContext()
@@ -207,11 +255,17 @@ class WebAudioEngine implements IAudioEngine {
     }
   }
 
+  /**
+   * Creates a new audio channel for the given source ID.
+   */
   createChannel(id: SourceId): void {
     if (!this.ctx || !this.masterGainNode || this.channels.has(id)) return
     this.channels.set(id, new SourceChannel(this.ctx, this.masterGainNode))
   }
 
+  /**
+   * Removes an audio channel for the given source ID.
+   */
   removeChannel(id: SourceId): void {
     const channel = this.channels.get(id)
     if (channel) {
@@ -221,6 +275,9 @@ class WebAudioEngine implements IAudioEngine {
     this.soloedIds.delete(id)
   }
 
+  /**
+   * Loads an audio file into the specified source channel.
+   */
   async loadFile(id: SourceId, arrayBuffer: ArrayBuffer): Promise<void> {
     await this.init()
     if (!this.channels.has(id)) this.createChannel(id)
@@ -229,6 +286,9 @@ class WebAudioEngine implements IAudioEngine {
     channel.audioBuffer = await this.ctx!.decodeAudioData(arrayBuffer)
   }
 
+  /**
+   * Plays a test tone (sine or pink noise) for the specified source.
+   */
   async playTestTone(id: SourceId, type: 'sine' | 'pink-noise'): Promise<void> {
     await this.init()
     if (!this.channels.has(id)) this.createChannel(id)
@@ -238,6 +298,9 @@ class WebAudioEngine implements IAudioEngine {
     this.transportStartTime = this.ctx!.currentTime
   }
 
+  /**
+   * Starts playback for all audio channels.
+   */
   playAll(): void {
     if (!this.ctx) return
     const startTime = this.ctx.currentTime + 0.01 // small lookahead for sample-accurate sync
@@ -253,6 +316,9 @@ class WebAudioEngine implements IAudioEngine {
     this._isPlaying = true
   }
 
+  /**
+   * Pauses playback for all audio channels.
+   */
   pauseAll(): void {
     for (const channel of this.channels.values()) {
       channel.pause()
@@ -260,6 +326,9 @@ class WebAudioEngine implements IAudioEngine {
     this._isPlaying = false
   }
 
+  /**
+   * Stops playback for all audio channels.
+   */
   stopAll(): void {
     for (const channel of this.channels.values()) {
       channel.stop()
@@ -268,6 +337,9 @@ class WebAudioEngine implements IAudioEngine {
     this.transportStartTime = 0
   }
 
+  /**
+   * Checks if any audio channel is currently paused.
+   */
   hasAnyPaused(): boolean {
     for (const channel of this.channels.values()) {
       if (channel.isPaused()) return true
@@ -275,6 +347,9 @@ class WebAudioEngine implements IAudioEngine {
     return false
   }
 
+  /**
+   * Checks if any audio channel has an audio buffer loaded.
+   */
   hasAnyBuffer(): boolean {
     for (const channel of this.channels.values()) {
       if (channel.audioBuffer) return true
@@ -282,14 +357,23 @@ class WebAudioEngine implements IAudioEngine {
     return false
   }
 
+  /**
+   * Sets the 3D position of an audio source.
+   */
   setPosition(id: SourceId, x: number, y: number, z: number): void {
     this.channels.get(id)?.setPosition(x, y, z)
   }
 
+  /**
+   * Sets the volume of an audio source.
+   */
   setVolume(id: SourceId, vol: number): void {
     this.channels.get(id)?.setVolume(vol)
   }
 
+  /**
+   * Sets the mute state of an audio source.
+   */
   setMuted(id: SourceId, muted: boolean): void {
     const channel = this.channels.get(id)
     if (!channel) return
@@ -299,6 +383,9 @@ class WebAudioEngine implements IAudioEngine {
     // unmute is handled by AudioBridge setting the real volume
   }
 
+  /**
+   * Sets the solo state of an audio source.
+   */
   setSoloed(id: SourceId, soloed: boolean): void {
     if (soloed) {
       this.soloedIds.add(id)
@@ -307,18 +394,30 @@ class WebAudioEngine implements IAudioEngine {
     }
   }
 
+  /**
+   * Checks if any audio source is currently soloed.
+   */
   hasSoloedChannels(): boolean {
     return this.soloedIds.size > 0
   }
 
+  /**
+   * Checks if a specific audio source is soloed.
+   */
   isChannelSoloed(id: SourceId): boolean {
     return this.soloedIds.has(id)
   }
 
+  /**
+   * Sets the frequency of a sine oscillator for a specific source.
+   */
   setSineFrequency(id: SourceId, freq: number): void {
     this.channels.get(id)?.setSineFrequency(freq)
   }
 
+  /**
+   * Sets whether all audio sources loop.
+   */
   setLooping(loop: boolean): void {
     this.isLooping = loop
     for (const channel of this.channels.values()) {
@@ -326,21 +425,33 @@ class WebAudioEngine implements IAudioEngine {
     }
   }
 
+  /**
+   * Gets the current looping state.
+   */
   getIsLooping(): boolean {
     return this.isLooping
   }
 
+  /**
+   * Sets the master volume for all audio sources.
+   */
   setMasterVolume(volume: number): void {
     if (this.masterGainNode) {
       this.masterGainNode.gain.value = volume
     }
   }
 
+  /**
+   * Sets the vertical position of the audio listener.
+   */
   setListenerY(y: number): void {
     if (!this.ctx) return
     this.ctx.listener.positionY.value = y
   }
 
+  /**
+   * Gets a snapshot of the analyser data for a specific source.
+   */
   getAnalyserSnapshot(id: SourceId): AnalyserSnapshot | null {
     const channel = this.channels.get(id)
     if (!channel) return null
@@ -352,10 +463,16 @@ class WebAudioEngine implements IAudioEngine {
     return { frequency, waveform }
   }
 
+  /**
+   * Gets the analyser node for a specific source.
+   */
   getAnalyser(id: SourceId): AnalyserNode | null {
     return this.channels.get(id)?.analyserNode ?? null
   }
 
+  /**
+   * Sets an audio buffer directly for a source.
+   */
   setAudioBuffer(id: SourceId, buffer: AudioBuffer): void {
     if (!this.channels.has(id)) this.createChannel(id)
     const channel = this.channels.get(id)!
@@ -363,14 +480,23 @@ class WebAudioEngine implements IAudioEngine {
     channel.audioBuffer = buffer
   }
 
+  /**
+   * Gets the audio buffer for a specific source.
+   */
   getAudioBuffer(id: SourceId): AudioBuffer | null {
     return this.channels.get(id)?.audioBuffer ?? null
   }
 
+  /**
+   * Gets the list of all source IDs.
+   */
   getChannelIds(): SourceId[] {
     return Array.from(this.channels.keys())
   }
 
+  /**
+   * Gets the maximum duration of all audio buffers.
+   */
   getDuration(): number {
     let max = 0
     for (const channel of this.channels.values()) {
@@ -381,6 +507,9 @@ class WebAudioEngine implements IAudioEngine {
     return max
   }
 
+  /**
+   * Gets the current playhead position.
+   */
   getPlayheadPosition(): number {
     if (!this.ctx || !this._isPlaying) return 0
     const elapsed = this.ctx.currentTime - this.transportStartTime
@@ -392,6 +521,9 @@ class WebAudioEngine implements IAudioEngine {
     return Math.min(elapsed, duration)
   }
 
+  /**
+   * Gets all buffered audio sources with their metadata.
+   */
   getAllBufferedSources(): {
     id: SourceId
     audioBuffer: AudioBuffer
@@ -421,11 +553,17 @@ class WebAudioEngine implements IAudioEngine {
     return result
   }
 
+  /**
+   * Enumerates available audio output devices.
+   */
   async enumerateDevices(): Promise<MediaDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices.filter((d) => d.kind === 'audiooutput')
   }
 
+  /**
+   * Sets the audio output device.
+   */
   async setOutputDevice(deviceId: string): Promise<void> {
     if (!this.ctx) return
     // setSinkId is available on AudioContext in modern browsers
@@ -434,6 +572,9 @@ class WebAudioEngine implements IAudioEngine {
     }
   }
 
+  /**
+   * Disposes of all audio resources.
+   */
   dispose(): void {
     for (const channel of this.channels.values()) {
       channel.dispose()
