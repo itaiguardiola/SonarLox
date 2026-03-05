@@ -215,7 +215,7 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
         commitPosition(x, y, curZ, false)
       }
     },
-    [camera, commitPosition, getSource]
+    [camera, commitPosition, getSource, roomSize]
   )
 
   /**

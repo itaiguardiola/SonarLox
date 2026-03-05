@@ -1,4 +1,4 @@
-import type { AppState, AudioSource, ProjectManifest, SourceId, SourceAnimation } from '../types'
+import type { AppState, AudioSource, ProjectManifest, SourceId, SourceAnimation, SourceType } from '../types'
 import type { TransportState } from '../types'
 import type { SerializedPluginState, PluginInstance } from '../plugins/types'
 
@@ -27,7 +27,7 @@ export interface SerializedState {
     dimensions: [number, number, number]
     showGrid: boolean
     showDistanceRings: boolean
-    acoustics: any
+    acoustics: Record<string, unknown> | null
   }
   transport?: {
     volume: number
@@ -142,7 +142,7 @@ export function deserializeProjectState(stateJson: Record<string, unknown>): Des
   const sources: AudioSource[] = (s.sources ?? []).map((src) => ({
     id: src.id,
     label: src.label,
-    sourceType: (src.type as any) ?? 'file',
+    sourceType: (src.type as SourceType) ?? 'file',
     position: src.position ?? [0, 1, 0],
     volume: src.volume ?? 1.0,
     color: src.color ?? '#ff6622',
@@ -221,7 +221,7 @@ export function serializePluginState(activePlugins: Map<string, PluginInstance>)
 }
 
 export function deserializePluginState(stateJson: Record<string, unknown>): SerializedPluginState[] {
-  const plugins = (stateJson as any).plugins as any[]
+  const plugins = (stateJson as Record<string, unknown>).plugins as Record<string, unknown>[] | undefined
   if (!plugins || !Array.isArray(plugins)) return []
 
   return plugins

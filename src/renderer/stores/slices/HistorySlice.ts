@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand'
 import { AppState, HistoryState, SourceId, SourceAnimation } from '../../types'
 import { usePluginStore } from '../../plugins/usePluginStore'
+import type { PluginParameterValue } from '../../plugins/types'
 import { rebuildAllEffectChains } from '../../plugins/effectChain'
 
 export interface HistorySlice {
@@ -80,7 +81,7 @@ export const createHistorySlice: StateCreator<AppState, [], [], HistorySlice> = 
         instance.slot = ps.slot
         Object.entries(ps.parameters).forEach(([pid, val]) => {
           instance.parameters[pid] = val
-          instance.plugin.setParameter(pid, val as any)
+          instance.plugin.setParameter(pid, val as PluginParameterValue)
         })
       }
     })
@@ -113,7 +114,7 @@ export const createHistorySlice: StateCreator<AppState, [], [], HistorySlice> = 
         instance.slot = ps.slot
         Object.entries(ps.parameters).forEach(([pid, val]) => {
           instance.parameters[pid] = val
-          instance.plugin.setParameter(pid, val as any)
+          instance.plugin.setParameter(pid, val as PluginParameterValue)
         })
       }
     })

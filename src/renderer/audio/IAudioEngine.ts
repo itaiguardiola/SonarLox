@@ -128,6 +128,16 @@ export interface IAudioEngine {
   getChannelNodes(id: SourceId): { gainNode: GainNode; pannerNode: PannerNode } | null
 
   /**
+   * Returns the underlying AudioContext, or null if not initialized.
+   */
+  getAudioContext(): AudioContext | null
+
+  /**
+   * Returns the master gain and analyser nodes for effect chain insertion.
+   */
+  getMasterNodes(): { masterGainNode: GainNode; masterAnalyserNode: AnalyserNode } | null
+
+  /**
    * Disposes of all resources used by the audio engine, releasing memory and stopping audio processing.
    */
   dispose(): void

@@ -1,13 +1,14 @@
 // Setup file for tests
 import '@testing-library/jest-dom/vitest';
+import type { ElectronAPI } from '../renderer/types';
 
 // Mock window.api if it doesn't exist
 if (typeof window !== 'undefined' && !window.api) {
-  (window as any).api = {
+  window.api = {
     showConfirmDialog: vi.fn(),
     showOpenDialog: vi.fn(),
     showSaveDialog: vi.fn(),
-  };
+  } as unknown as ElectronAPI;
 }
 
 // Mock requestAnimationFrame
@@ -20,4 +21,4 @@ class MockIntersectionObserver {
   disconnect = vi.fn();
 }
 
-global.IntersectionObserver = MockIntersectionObserver as any;
+global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;

@@ -47,7 +47,7 @@ export function rebuildMasterEffectChain(): void {
   const ctx = audioEngine.getAudioContext()
   if (!ctx) return
 
-  const nodes = (audioEngine as any).getMasterNodes?.()
+  const nodes = audioEngine.getMasterNodes()
   if (!nodes) return
 
   const { masterGainNode, masterAnalyserNode } = nodes

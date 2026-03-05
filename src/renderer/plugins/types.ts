@@ -1,4 +1,5 @@
-import type { SourceId, SourcePosition } from '../types'
+import type { SourceId, SourcePosition, AudioSource } from '../types'
+import type { IAudioEngine } from '../audio/IAudioEngine'
 
 /** Supported plugin types in SonarLox */
 export type PluginType = 'audio-effect' | 'visualizer' | 'exporter' | 'source-generator'
@@ -18,19 +19,22 @@ export interface PluginParameterDef {
 /** Runtime value of a plugin parameter */
 export type PluginParameterValue = number | boolean | string
 
+/** Transport snapshot passed to plugins */
+export interface TransportSnapshot {
+  isPlaying: boolean
+  playheadPosition: number
+  duration: number
+}
+
 /** Shared context provided to all plugins */
 export interface PluginContext {
   audioContext: AudioContext
-  audioEngine: any // IAudioEngine
+  audioEngine: IAudioEngine
   sampleRate: number
   /** Current transport state */
-  transport: {
-    isPlaying: boolean
-    playheadPosition: number
-    duration: number
-  }
+  transport: TransportSnapshot
   /** Subscribe to transport state changes (play/pause/seek) */
-  onTransportChange: (callback: (state: any) => void) => () => void
+  onTransportChange: (callback: (state: TransportSnapshot) => void) => () => void
   /** Subscribe to parameter changes */
   onParameterChange: (callback: (id: string, value: PluginParameterValue) => void) => () => void
   /** Logs a message to the host console */
@@ -58,7 +62,7 @@ export interface VisualizerPlugin extends SonarLoxPlugin {
   /** Called each frame with analyser data; returns geometry for host rendering */
   update?(analyserData: Float32Array, sourcePosition: SourcePosition): VisualizerData
   /** (Recommended) Renders geometry directly into the R3F scene */
-  render?(props: { sources: any[]; audioEngine: any }): React.ReactNode
+  render?(props: { sources: AudioSource[]; audioEngine: IAudioEngine }): React.ReactNode
 }
 
 export interface VisualizerData {
