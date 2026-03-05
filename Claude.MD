@@ -21,11 +21,14 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
 - Main process (src/main/) handles file dialogs and IPC only
 - Renderer process (src/renderer/) has all UI and audio logic
 - Zustand stores:
-  - `useAppStore` (src/renderer/stores/useAppStore.ts) — source of truth for sources, positions, volume, mute/solo, master volume, output device, camera
+  - `useAppStore` (src/renderer/stores/useAppStore.ts) — source of truth for sources, positions, volume, mute/solo, master volume, output device, camera, export state
   - `useTransportStore` (src/renderer/stores/useTransportStore.ts) — transport state (play/pause/stop/seek/loop), playhead position via rAF loop
-- Audio graph: per-source gain -> panner(HRTF) -> analyser -> masterGain -> masterAnalyser -> destination
+- Audio graph (live): per-source gain -> panner(HRTF) -> analyser -> masterGain -> masterAnalyser -> destination
+- Audio graph (5.1 export): per-source -> gain(volume*vbapGain) -> [LFE: 120Hz lowpass] -> channelMerger(6) -> destination
 - 3D source position syncs to Web Audio PannerNode on every frame via AudioBridge
 - AudioBridge also handles solo logic (if any soloed, non-soloed get gain=0) and master volume
+- Export respects solo/mute state (matches playback) and listener Y position
+- ExportDialog (src/renderer/components/ExportDialog.tsx) handles binaural, 5.1, or both export modes
 - Listener Y position syncs to Web Audio AudioListener via AudioBridge
 - AnalyserNode provides waveform data for visual feedback
 - TimelinePanel shows per-source waveforms with shared playhead, click-to-scrub
@@ -47,7 +50,10 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
 ## Verification
 - After changes, always run typecheck and confirm the app renders
 - Test audio: load any MP3, drag source, confirm spatial panning through headphones
-- Test export: export WAV, play in external player, confirm stereo spatialization
+- Test export: open Export dialog, select binaural, export mix, play in external player, confirm stereo spatialization
+- Test export 5.1: export 5.1 mix, open in Audacity, confirm 6 channels
+- Test export stems: export individual stems to directory, confirm files saved with correct names
+- Test export solo: solo one source, export mix, confirm only soloed source in output
 - Test pause/resume: pause mid-track, resume from same position
 - Test loop toggle: turn off loop, confirm audio stops at end
 - Test listener height: slide listener Y, confirm spatial audio changes

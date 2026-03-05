@@ -2,16 +2,15 @@ import { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { useTransportStore } from '../stores/useTransportStore'
 import { audioEngine } from '../audio/WebAudioEngine'
-import { exportBinauralWav, exportMixedBinauralWav } from '../audio/Exporter'
 import {
   loadSoundFont,
   unloadSoundFont,
-  isLoaded as isSoundFontLoaded,
   renderMidiTrackWithSoundFont,
 } from '../audio/SoundFontPlayer'
 import { renderMidiTrack } from '../audio/MidiSynth'
-import { getAllMidiSourceIds, getTrack } from '../audio/midiTrackCache'
+import { getTrack } from '../audio/midiTrackCache'
 import { SourceList } from './SourceList'
+import { ExportDialog } from './ExportDialog'
 
 export function ControlPanel() {
   const isPlaying = useTransportStore((s) => s.isPlaying)
@@ -43,7 +42,8 @@ export function ControlPanel() {
   const setSourceAudioFileName = useAppStore((s) => s.setSourceAudioFileName)
   const setSourceSineFrequency = useAppStore((s) => s.setSourceSineFrequency)
 
-  const [isExporting, setIsExporting] = useState(false)
+  const isExporting = useAppStore((s) => s.isExporting)
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([])
 
   // Enumerate audio output devices
@@ -172,47 +172,6 @@ export function ControlPanel() {
   const handleMasterVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value)
     setMasterVolume(v)
-  }
-
-  const handleExportMix = async () => {
-    const sources = useAppStore.getState().sources
-    const exportSources = sources
-      .filter((s) => !s.isMuted)
-      .map((s) => {
-        const buf = audioEngine.getAudioBuffer(s.id)
-        return buf ? { audioBuffer: buf, position: s.position, volume: s.volume } : null
-      })
-      .filter((s): s is NonNullable<typeof s> => s !== null)
-
-    if (exportSources.length === 0) return
-    setIsExporting(true)
-    try {
-      const wav = await exportMixedBinauralWav(exportSources)
-      await window.api.saveWavFile(wav)
-    } catch (err) {
-      console.error('Export failed:', err)
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
-  const handleExportPerSource = async () => {
-    const sources = useAppStore.getState().sources
-    setIsExporting(true)
-    try {
-      for (const source of sources) {
-        if (source.isMuted) continue
-        const buf = audioEngine.getAudioBuffer(source.id)
-        if (!buf) continue
-        const wav = await exportBinauralWav(buf, source.position, source.volume)
-        const filename = `${source.label}${source.audioFileName ? ' - ' + source.audioFileName : ''}.wav`
-        await window.api.saveWavFile(wav, filename)
-      }
-    } catch (err) {
-      console.error('Export failed:', err)
-    } finally {
-      setIsExporting(false)
-    }
   }
 
   const sineFrequency = selectedSource?.sineFrequency ?? 440
@@ -528,21 +487,17 @@ export function ControlPanel() {
         <span className="section-label">Export</span>
         <button
           className="btn btn--accent"
-          onClick={handleExportMix}
+          onClick={() => setShowExportDialog(true)}
           disabled={!hasAnyAudio || isExporting}
           style={{ flex: 'none' }}
         >
-          {isExporting ? 'Exporting...' : 'Export Mix'}
-        </button>
-        <button
-          className="btn"
-          onClick={handleExportPerSource}
-          disabled={!hasAnyAudio || isExporting}
-          style={{ flex: 'none' }}
-        >
-          Export Per-Source
+          {isExporting ? 'Exporting...' : 'Export...'}
         </button>
       </div>
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+      />
 
       <div className="divider" />
 

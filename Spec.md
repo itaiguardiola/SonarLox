@@ -276,35 +276,42 @@ This pre-rendering approach means MIDI playback uses the same engine as WAV/MP3 
 All sources rendered through their respective HRTF PannerNodes, mixed into one stereo WAV:
 
 1. Create an `OfflineAudioContext` (44.1kHz, stereo, duration = longest source)
-2. For each source, create:
+2. Set `offlineCtx.listener.positionY.value` to the current listener height
+3. For each source, create:
    - `AudioBufferSourceNode` with the source's buffer
-   - `GainNode` with the source's volume (respect mute, ignore solo for export)
+   - `GainNode` with the source's volume (respect mute and solo — export matches playback)
    - `PannerNode` with HRTF at the source's position
-3. Connect all chains to the offline context destination
-4. Start all sources at time 0
-5. `offlineCtx.startRendering()` → get the mixed `AudioBuffer`
-6. Convert to 44.1kHz 16-bit stereo WAV
-7. Electron save dialog → write to disk
+4. Connect all chains to the offline context destination
+5. Start all sources at time 0
+6. `offlineCtx.startRendering()` → get the mixed `AudioBuffer`
+7. Convert to 44.1kHz 16-bit stereo WAV
+8. Electron save dialog → write to disk
+
+**Solo and export:** Export respects the current solo state. When one or more sources are soloed, only soloed (and non-muted) sources are included in the export. This ensures the exported file matches what the user hears during playback.
 
 ### Per-Source Export
 
-Export each source as its own spatialized stereo WAV:
+Export each source as its own spatialized WAV:
 
-1. For each source, create a separate `OfflineAudioContext`
-2. Render that single source through its PannerNode
-3. Save as `[source_name]_spatial.wav`
-4. Electron save dialog → choose directory, all files saved there
+1. User selects an output directory via directory picker
+2. For each exportable source, create a separate `OfflineAudioContext`
+3. Render that single source through its PannerNode (binaural) or VBAP gains (5.1)
+4. Save as `{label} - {audioFileName}.wav` (or `_51.wav` suffix for 5.1)
+5. Files written directly to chosen directory via IPC (no per-file save dialog)
+6. Filenames are sanitized to remove path separators and OS-invalid characters
 
 ### Export UI
 
-The export button opens a dialog with:
-- Export type: "Full Mix" / "Individual Stems"
-- Rendering mode: "Binaural (Stereo)" / "5.1 Surround" / "Both"
-- For full mix: single file name (or two files if "Both")
-- For individual: choose output directory
-- Progress bar during rendering (for long files)
+The "Export..." button in the control panel opens `ExportDialog.tsx` with:
+- Export type radio: "Full Mix" / "Individual Stems"
+- Rendering mode radio: "Binaural (Stereo)" / "5.1 Surround" / "Both"
+- Progress bar during rendering (indeterminate for single jobs, percentage for multi-job)
+- Cancel button (stops remaining jobs; current render completes)
 
-The rendering mode defaults to whatever the current monitoring mode is, but can be overridden. This lets you monitor in binaural headphones but export 5.1 for a surround system.
+For full mix: save dialog per file (or two sequential dialogs for "Both").
+For individual stems: directory picker first, then batch render with progress.
+
+Export state (`isExporting`, `exportProgress`) lives in `useAppStore` so the control panel button reflects status even when the dialog is open.
 
 ---
 
@@ -495,7 +502,7 @@ The sidebar control panel now manages multiple sources:
 │ Z: -3.00               │
 │                         │
 │ ─── EXPORT ───          │
-│ [Export Mix] [Export All]│
+│ [Export...]              │
 └─────────────────────────┘
 ```
 
@@ -638,12 +645,14 @@ interface TransportState {
 - Falls back to basic synth if no SoundFont loaded
 - Verify: load MIDI + SoundFont, quality noticeably better than basic synth
 
-### Phase 12: Export (Est. 1-2 sessions) — CLOUD + LOCAL
-- CLOUD: Multi-source OfflineAudioContext rendering strategy
-- LOCAL: Update Exporter.ts for multi-source mixed export
-- LOCAL: Per-source individual export option
-- LOCAL: ExportDialog component with options
-- LOCAL: Progress indicator during render
+### Phase 12: Export Dialog + 5.1 Export (COMPLETE)
+- ExportDialog component with type/mode radios, progress bar, cancel
+- Export respects solo/mute state (matches playback behavior)
+- Listener Y position captured in offline render
+- 5.1 surround export via VBAP panning to ITU speaker layout
+- Binaural, 5.1, or both export modes for mix and per-source
+- Directory picker + batch save for stem export (sanitized filenames)
+- Path traversal protection in IPC handler
 - Verify: export mixed WAV, play in external player, hear all sources spatialized
 
 ### Phase 13: Visual Feedback (Est. 1-2 sessions) — LOCAL

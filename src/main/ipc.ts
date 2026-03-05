@@ -1,5 +1,6 @@
 import { ipcMain, dialog } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, mkdir } from 'fs/promises'
+import { dirname, resolve } from 'path'
 
 ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer, defaultPath?: string) => {
   const result = await dialog.showSaveDialog({
@@ -38,6 +39,36 @@ ipcMain.handle('open-midi-file', async () => {
   )
   return { buffer: arrayBuffer, name: result.filePaths[0].split(/[\\/]/).pop() }
 })
+
+ipcMain.handle('select-directory', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory']
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  return result.filePaths[0]
+})
+
+ipcMain.handle(
+  'save-wav-file-to-path',
+  async (_event, wavBuffer: ArrayBuffer, filePath: string, expectedDir?: string) => {
+    try {
+      const resolved = resolve(filePath)
+      if (expectedDir) {
+        const resolvedDir = resolve(expectedDir)
+        if (!resolved.startsWith(resolvedDir + '\\') && !resolved.startsWith(resolvedDir + '/')) {
+          console.error('Path traversal blocked:', resolved, 'not in', resolvedDir)
+          return { saved: false }
+        }
+      }
+      await mkdir(dirname(resolved), { recursive: true })
+      await writeFile(resolved, Buffer.from(wavBuffer))
+      return { saved: true, path: resolved }
+    } catch (err) {
+      console.error('Failed to save WAV file:', err)
+      return { saved: false }
+    }
+  }
+)
 
 ipcMain.handle('open-soundfont-file', async () => {
   const result = await dialog.showOpenDialog({

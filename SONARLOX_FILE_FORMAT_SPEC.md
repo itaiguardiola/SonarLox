@@ -3,12 +3,41 @@
 **Version:** 1.0 Draft
 **Date:** March 2026
 **Status:** Proposed — for review before implementation
+**License:** This specification is released into the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+---
+
+## Open Format Philosophy
+
+The `.sonarlox` and `.snlxp` file formats are **open specifications**, free for anyone to implement, extend, and distribute without restriction. This is a deliberate and permanent commitment.
+
+**No gatekeeping.** Spatial audio tools have historically been locked behind expensive proprietary software and closed formats. Filmmakers, musicians, game designers, educators, accessibility researchers, podcast producers — anyone who wants to work with spatial audio should be able to do so without paying for the privilege of opening a file. These formats exist to make that possible.
+
+### How This Was Built
+
+SonarLox was built by a human and an AI, vibing.
+
+The architecture was designed in conversation with Claude. The code was generated with local models running on a single GPU. The spatial audio algorithms come from decades of publicly funded acoustics research. The 3D rendering runs on open source libraries maintained by volunteers. The file format sits on top of ZIP and JSON — standards that belong to everyone.
+
+None of this was built in isolation. It was built on top of everything that came before — open research papers, open source code, open data, and an AI trained on the collective output of human knowledge. Charging money for the result would be claiming ownership over something that was never ours alone to begin with.
+
+Vibe coding is a vibe. The barrier between idea and implementation is collapsing. A single person with a GPU and a good prompt can build things that used to require a funded team. That shift should make tools *more* accessible, not less. If AI makes it easier to build, then more things should be free. That's the deal.
+
+This project is the proof: spatial audio for everyone, built with AI, given away because that's the only version of this that makes sense.
+
+**No patents, no licensing fees, no royalties.** No entity — including the original authors of SonarLox — holds or will seek intellectual property rights over these formats. Anyone may read, write, parse, validate, convert, stream, transcode, embed, extend, or build tooling around `.sonarlox` and `.snlxp` files for any purpose, commercial or non-commercial, without permission, attribution, or payment.
+
+**No proprietary extensions.** If this format evolves, it evolves in the open. Version changes to this specification will be published publicly. Reserved fields and namespaced directories are documented here so that independent implementors can plan ahead. The goal is one format that works everywhere, not fragmented dialects.
+
+**Built to be inspectable.** Both formats are ZIP archives containing JSON and standard audio files. Any developer with `unzip` and a text editor can read the contents. No hex editors, no reverse engineering, no NDAs. This transparency is a feature, not a convenience — it ensures that no single tool, company, or maintainer can become a bottleneck.
+
+**The format belongs to its users.** SonarLox the application is MIT-licensed open source software. This specification is CC0 public domain. If the original project ever goes unmaintained, the format survives. Anyone can fork, reimplement, or build something entirely new that reads and writes these files. Your projects are yours. Your mixes are yours. Your spatial experiences are yours. Forever.
 
 ---
 
 ## Overview
 
-SonarLox uses two proprietary file formats: a **project file** for editing sessions and a **playback file** for self-contained spatial audio experiences. Both are ZIP containers with JSON manifests and binary audio data.
+SonarLox defines two open file formats: a **project file** for editing sessions and a **playback file** for self-contained spatial audio experiences. Both are ZIP containers with JSON manifests and binary audio data.
 
 | Format | Extension | Purpose | Contains editable state | Embeds audio |
 |--------|-----------|---------|------------------------|--------------|
@@ -22,6 +51,7 @@ SonarLox uses two proprietary file formats: a **project file** for editing sessi
 3. **Raw audio stored as binary files inside the ZIP.** Not base64-encoded — keeps file size small and allows streaming reads.
 4. **Forward-compatible.** Unknown keys in JSON are ignored by older readers. New sections can be added without breaking existing parsers.
 5. **Extension uniqueness verified.** Neither `.sonarlox` nor `.snlxp` conflict with any known file format as of March 2026.
+6. **Open and unencumbered.** No patents, no DRM, no licensing. See Open Format Philosophy above.
 
 ---
 
@@ -601,6 +631,48 @@ These additions would be additive (minor version bumps) and backwards-compatible
 | 3min MP3 source, embedded as WAV | ~3 MB (MP3) | ~31 MB (decoded WAV) | ~31 MB |
 
 **Note:** Audio is always stored as uncompressed WAV inside the ZIP for instant decode during playback. The ZIP's deflate compression provides ~5-15% reduction on WAV data. Future versions may support compressed audio formats inside the container to reduce file size.
+
+---
+
+## For Implementors
+
+This section is for anyone building tools that read or write `.sonarlox` and `.snlxp` files — whether that's an alternative editor, a web player, a DAW plugin, a mobile viewer, a command-line converter, or something we haven't imagined yet.
+
+### Minimum Viable Reader
+
+To build a basic `.snlxp` player, you need:
+
+1. A ZIP library (every language has one).
+2. A JSON parser (every language has one).
+3. An audio playback engine with stereo panning or HRTF support.
+4. A timer that evaluates timeline keyframes and updates source positions.
+
+That's it. No proprietary SDK, no API keys, no build system dependencies. A functional player can be written in a few hundred lines of code in any language.
+
+### Minimum Viable Writer
+
+To build a tool that exports `.sonarlox` project files:
+
+1. Construct `manifest.json` with the required fields.
+2. Construct `state.json` with at least `source`, `listener`, `spatial`, and `room`.
+3. Construct `timeline.json` (can be `{"version":"1.0.0","tracks":[]}` if no automation).
+4. Write audio to `audio/source_0.wav` and metadata to `audio/source_0.meta.json`.
+5. ZIP everything into a file with the `.sonarlox` extension.
+
+### Compatibility Testing
+
+When implementing a reader, test against these edge cases:
+
+- Files with unknown JSON keys (must be silently ignored).
+- Files with unknown ZIP entries (must be silently ignored).
+- Files with missing optional entries (`thumbnails/`, `timeline.json` with empty tracks).
+- Files with `audioEmbedMode: "referenced"` where the external file is missing (graceful error).
+- Files with `sync: null` (v1.x — no video sync).
+- Files with `rendering.outputModes` containing modes with `enabled: false` (reserved for future).
+
+### Registering Your Implementation
+
+If you build a tool that reads or writes these formats, consider opening an issue or PR on the SonarLox GitHub repository to be listed as a known implementation. This helps users discover compatible tools and helps the community track format adoption.
 
 ---
 

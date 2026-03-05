@@ -99,6 +99,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsLooping: (isLooping) => set({ isLooping }),
   setListenerY: (listenerY) => set({ listenerY }),
 
+  isExporting: false,
+  setIsExporting: (isExporting) => set({ isExporting }),
+  exportProgress: 0,
+  setExportProgress: (exportProgress) => set({ exportProgress }),
+
   masterVolume: 1.0,
   setMasterVolume: (masterVolume) => set({ masterVolume }),
   selectedOutputDevice: null,

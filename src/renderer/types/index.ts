@@ -76,6 +76,12 @@ export interface AppState {
   selectedOutputDevice: string | null
   setSelectedOutputDevice: (id: string | null) => void
 
+  // Export
+  isExporting: boolean
+  setIsExporting: (v: boolean) => void
+  exportProgress: number
+  setExportProgress: (p: number) => void
+
   // Camera
   cameraPresets: (CameraPreset | null)[]
   setCameraPreset: (index: number, preset: CameraPreset | null) => void
@@ -98,6 +104,8 @@ export interface ElectronAPI {
   openMidiFile: () => Promise<AudioFileResult | null>
   openSoundFontFile: () => Promise<AudioFileResult | null>
   saveWavFile: (buffer: ArrayBuffer, defaultPath?: string) => Promise<SaveWavResult>
+  selectDirectory: () => Promise<string | null>
+  saveWavFileToPath: (buffer: ArrayBuffer, filePath: string, expectedDir?: string) => Promise<SaveWavResult>
 }
 
 declare global {
