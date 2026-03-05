@@ -992,6 +992,32 @@ Missing video on reopen triggers "locate file" dialog.
 
 ---
 
+### Phase 18: Video Synchronization (COMPLETE)
+
+Docked video panel with broadcast-monitor aesthetic, synced to audio transport.
+- HTML5 video element synced via `useVideoSync` hook (play/pause/seek/frame-step)
+- SMPTE timecode display (`HH:MM:SS:FF`) with configurable frame rate
+- TC offset slider for video-to-audio alignment
+- 3D video screen in scene (fixed orientation, draggable, lockable, scalable)
+- Extract audio track from video file
+- CRT scanlines, crop marks, vignette overlays
+- `buildVideoUrl` helper centralizes custom protocol URL construction
+- `refreshDuration` transport action replaces direct `setState` calls
+- Video screen uses fixed orientation (no billboard) -- camera reserved for audio workflow
+
+### Phase 19: Control Panel Redesign (COMPLETE)
+
+Collapsible sidebar sections with workflow-priority grouping.
+- Reusable `Section` component with chevron toggle, label, and accessory slot
+- Core sections open by default: Session, Sources (with inline properties), Transport, Output
+- Secondary sections collapsed by default: Environment, Video Sync, Plugins, Camera
+- Source count badge in section header accessory
+- Tighter spacing (300px sidebar, 2px section gap, 10px body indent)
+- `sectionReveal` CSS animation on expand
+- Foundation pattern for future plugin/feature panels
+
+---
+
 ## What's Deferred to v2+
 
 - **AI stem separation** (Demucs/HTDemucs — user provides their own stems in v1)
@@ -1002,3 +1028,5 @@ Missing video on reopen triggers "locate file" dialog.
 - **Head tracking** (webcam/gyroscope listener orientation)
 - **Native audio backend** (PortAudio — see AUDIO_ENGINE_SPEC.md)
 - **Plugin registry/store** (curated online registry with install-from-browser)
+- **Multi-camera system** (fixed audio camera + additional cameras for screen controls, VR views, preview renders)
+- **Video export** (mux spatial audio into video container via ffmpeg)

@@ -154,21 +154,6 @@ export function SourceList() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span className="section-label" style={{ paddingBottom: 0 }}>
-          Sources
-        </span>
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            color: 'var(--text-muted)',
-          }}
-        >
-          {sources.length}/{MAX_SOURCES}
-        </span>
-      </div>
-
       {sources.map((source) => {
         const isSelected = source.id === selectedSourceId
         return (

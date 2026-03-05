@@ -102,8 +102,6 @@ export function VideoSection() {
 
   return (
     <div className="vs-root">
-      <span className="section-label">Video Sync</span>
-
       {!videoFileName ? (
         <button className="video-section-load-btn" onClick={handleLoadVideo}>
           Load Video

@@ -87,7 +87,6 @@ export function OutputSection() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span className="section-label">Output</span>
         {outputDevices.length > 0 && (
           <select
             value={selectedOutputDevice ?? ''}
@@ -128,7 +127,7 @@ export function OutputSection() {
         <>
           <div className="divider" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span className="section-label">SoundFont</span>
+            <span className="cp-section-label">SoundFont</span>
             {soundFontName ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{

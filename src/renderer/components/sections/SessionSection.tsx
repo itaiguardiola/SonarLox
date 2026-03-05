@@ -10,7 +10,6 @@ export function SessionSection() {
 
   return (
     <div className="project-session">
-      <span className="section-label">Session</span>
       <div className="project-title-well">
         <span className={isDirty ? 'project-dirty-led' : 'project-clean-led'}
           title={isDirty ? 'Unsaved changes' : 'Saved'}

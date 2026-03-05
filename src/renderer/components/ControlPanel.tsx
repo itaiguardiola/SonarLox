@@ -1,4 +1,5 @@
 import { useAppStore } from '../stores/useAppStore'
+import { Section } from './Section'
 import { SessionSection } from './sections/SessionSection'
 import { OutputSection } from './sections/OutputSection'
 import { SourceList } from './SourceList'
@@ -9,18 +10,15 @@ import { VideoSection } from './sections/VideoSection'
 import { PluginPanel } from './PluginPanel'
 import { CameraSection } from './sections/CameraSection'
 
-/**
- * Main sidebar control panel for SonarLox.
- * Orchestrates logical sections for project management, audio output, 
- * transport, spatial settings, and plugins.
- */
 export function ControlPanel() {
   const selectedSourceId = useAppStore((s) => s.selectedSourceId)
+  const sourceCount = useAppStore((s) => s.sources.length)
+  const hasVideo = useAppStore((s) => s.videoFilePath !== null)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {/* Brand */}
-      <div style={{ paddingBottom: 2 }}>
+      <div style={{ paddingBottom: 4 }}>
         <h2 className="logo">Sonar<span className="logo-accent">Lox</span></h2>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '1px', marginTop: 2 }}>
           SPATIAL AUDIO EDITOR
@@ -29,35 +27,64 @@ export function ControlPanel() {
 
       <div className="divider" />
 
-      <SessionSection />
-      <div className="divider" />
-      
-      <OutputSection />
+      <Section label="Session">
+        <SessionSection />
+      </Section>
+
       <div className="divider" />
 
-      <SourceList />
+      <Section
+        label="Sources"
+        accessory={
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+            {sourceCount}/8
+          </span>
+        }
+      >
+        <SourceList />
+        {selectedSourceId && (
+          <>
+            <div className="divider" style={{ margin: '4px 0' }} />
+            <SourcePropertiesSection />
+          </>
+        )}
+      </Section>
+
       <div className="divider" />
 
-      {selectedSourceId && (
-        <>
-          <SourcePropertiesSection />
-          <div className="divider" />
-        </>
-      )}
-      
-      <TransportSection />
+      <Section label="Transport">
+        <TransportSection />
+      </Section>
+
       <div className="divider" />
 
-      <EnvironmentSection />
+      <Section label="Output">
+        <OutputSection />
+      </Section>
+
       <div className="divider" />
 
-      <VideoSection />
+      <Section label="Environment" defaultCollapsed>
+        <EnvironmentSection />
+      </Section>
+
       <div className="divider" />
 
-      <PluginPanel />
+      <Section label="Video Sync" defaultCollapsed={!hasVideo}>
+        <VideoSection />
+      </Section>
+
       <div className="divider" />
 
-      <CameraSection />
+      <Section label="Plugins" defaultCollapsed>
+        <PluginPanel />
+      </Section>
+
+      <div className="divider" />
+
+      <Section label="Camera" defaultCollapsed>
+        <CameraSection />
+      </Section>
 
       {/* Bottom spacer for scroll */}
       <div style={{ height: 8 }} />

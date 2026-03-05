@@ -85,7 +85,7 @@
   margin: 4px 0;
 }
 
-/* ---- Section Label ---- */
+/* ---- Section Label (legacy) ---- */
 .section-label {
   font-family: var(--font-body);
   font-size: 10px;
@@ -94,6 +94,81 @@
   text-transform: uppercase;
   color: var(--text-muted);
   padding-bottom: 6px;
+}
+
+/* ---- Collapsible Section ---- */
+.cp-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.cp-section-header:hover .cp-section-label {
+  color: var(--text-secondary);
+}
+
+.cp-section-header:hover .cp-section-chevron {
+  border-color: var(--text-secondary);
+}
+
+.cp-section-chevron {
+  width: 0;
+  height: 0;
+  border-left: 4px solid var(--text-muted);
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  flex-shrink: 0;
+  transition: transform 0.15s var(--ease-out);
+}
+
+.cp-section-chevron--open {
+  transform: rotate(90deg);
+}
+
+.cp-section-label {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color 0.12s;
+}
+
+.cp-section-accessory {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.cp-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 4px 10px;
+  animation: sectionReveal 0.15s var(--ease-out) both;
+}
+
+@keyframes sectionReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ---- Buttons ---- */

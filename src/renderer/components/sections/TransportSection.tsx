@@ -24,7 +24,6 @@ export function TransportSection() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <span className="section-label">Transport</span>
       <div style={{ display: 'flex', gap: 5 }}>
         <button
           className={`btn btn--transport ${isPlaying ? '' : 'btn--accent'}`}

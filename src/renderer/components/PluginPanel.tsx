@@ -79,19 +79,6 @@ export function PluginPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span className="section-label" style={{ paddingBottom: 0 }}>Plugins</span>
-        <button
-          className="btn-icon"
-          onClick={handleScan}
-          disabled={isScanning}
-          title="Rescan plugins directory"
-          style={{ fontSize: 11 }}
-        >
-          {isScanning ? '...' : 'Scan'}
-        </button>
-      </div>
-
       {availablePlugins.length === 0 ? (
         <div className="readout-small">
           No plugins found.

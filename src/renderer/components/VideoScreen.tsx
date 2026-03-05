@@ -161,7 +161,7 @@ export function VideoScreen({ videoElement }: VideoScreenProps) {
 
   const shouldRender = hasVideo && visible && videoTexture !== null
 
-  // Update mesh position and billboard rotation each frame
+  // Update mesh position, scale, and opacity each frame
   useFrame(() => {
     const mesh = meshRef.current
     if (!mesh) return
@@ -171,12 +171,6 @@ export function VideoScreen({ videoElement }: VideoScreenProps) {
     if (!isDragging.current) {
       mesh.position.set(...s.videoScreenPosition)
     }
-
-    // Billboard: face camera horizontally
-    const camPos = camera.position
-    const dx = camPos.x - mesh.position.x
-    const dz = camPos.z - mesh.position.z
-    mesh.rotation.y = Math.atan2(dx, dz)
 
     // Update scale (16:9 aspect)
     const sc = s.videoScreenScale

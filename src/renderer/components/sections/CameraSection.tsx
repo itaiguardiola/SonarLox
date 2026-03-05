@@ -6,7 +6,6 @@ export function CameraSection() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span className="section-label">Camera</span>
       <div style={{ display: 'flex', gap: 5 }}>
         <button className="btn" onClick={() => setCameraCommand({ type: 'home' })} style={{ flex: 1 }}>Home</button>
         {[0, 1, 2, 3].map((i) => (

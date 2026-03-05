@@ -40,6 +40,8 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
 - Drag & Drop: Drop audio/MIDI files directly into the 3D room to create sources.
 - Timeline: Waveform scrubbing and smooth Catmull-Rom spline interpolation for animations.
 - Toasts & Dialogs: Console-styled status strips and native OS confirmation dialogs.
+- Control Panel: Collapsible `Section` component wraps all sidebar sections. Core sections (Session, Sources, Transport, Output) open by default; secondary sections (Environment, Video Sync, Plugins, Camera) collapsed by default. Section component accepts `label`, `accessory` (header badge/button), and `defaultCollapsed` props. Future plugin panels should use this component.
+- Video Screen: Fixed orientation in 3D scene (no billboard rotation). Draggable, lockable, scalable.
 
 ## Performance Pattern: Zustand Transient Updates
 - Components that read position in useFrame use `useAppStore.getState()` (no subscription, no re-render)
@@ -71,6 +73,8 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
 - Test keyboard shortcuts: Space toggles play, 1-8 selects sources, Delete removes
 - Test plugins: Enable "Simple Reverb" on a source, confirm effect is audible. Enable "Spectrum Visualizer" and confirm bars appear.
 - Test plugin persistence: Save project with an active plugin and custom parameters, reload, confirm settings are restored.
+- Test collapsible sections: Click section headers to collapse/expand, confirm chevron rotates, content animates in.
+- Test video screen: Confirm 3D video screen stays at fixed orientation (no billboard), can be dragged and locked.
 
 ## Model Routing
 
@@ -116,7 +120,7 @@ claude
 ```
 
 ## Reference
-- Full spec: see SPEC.md in project root
+- Development plan: see plan.md in project root
 - Web Audio API spatial: use context7 for PannerNode and HRTF docs
 - React Three Fiber: use context7 for current docs
 - Electron + electron-vite: use context7 for current docs

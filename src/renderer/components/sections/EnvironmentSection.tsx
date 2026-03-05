@@ -7,10 +7,10 @@ export function EnvironmentSection() {
   const setRoomSize = useAppStore((s) => s.setRoomSize)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="section-label" style={{ paddingBottom: 0 }}>Listener Height</span>
+          <span className="cp-section-label">Listener Height</span>
           <span className="slider-value">{listenerY.toFixed(1)}</span>
         </div>
         <input
@@ -25,7 +25,7 @@ export function EnvironmentSection() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="section-label" style={{ paddingBottom: 0 }}>Room Size</span>
+          <span className="cp-section-label">Room Size</span>
           <span className="slider-value">{roomSize[0]}x{roomSize[1]}</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

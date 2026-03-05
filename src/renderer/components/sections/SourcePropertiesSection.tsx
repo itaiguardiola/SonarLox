@@ -44,7 +44,7 @@ export function SourcePropertiesSection() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: selectedSource.color }} />
-        <span className="section-label" style={{ paddingBottom: 0 }}>{selectedSource.label}</span>
+        <span className="cp-section-label">{selectedSource.label}</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginLeft: 'auto' }}>
           {selectedSource.sourceType.toUpperCase().replace('-TRACK', '')}
         </span>
@@ -85,7 +85,7 @@ export function SourcePropertiesSection() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="section-label" style={{ paddingBottom: 0 }}>Volume</span>
+          <span className="cp-section-label">Volume</span>
           <span className="slider-value">{Math.round(selectedSource.volume * 100)}%</span>
         </div>
         <input
@@ -96,7 +96,7 @@ export function SourcePropertiesSection() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span className="section-label">Position</span>
+        <span className="cp-section-label">Position</span>
         <div className="readout">
           <span style={{ color: 'var(--accent-red)', opacity: 0.7 }}>X</span> {selectedSource.position[0].toFixed(2)}
           <span style={{ color: 'var(--accent-teal)', opacity: 0.7, marginLeft: 8 }}>Y</span> {selectedSource.position[1].toFixed(2)}
