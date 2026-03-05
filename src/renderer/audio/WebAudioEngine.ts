@@ -356,6 +356,13 @@ class WebAudioEngine implements IAudioEngine {
     return this.channels.get(id)?.analyserNode ?? null
   }
 
+  setAudioBuffer(id: SourceId, buffer: AudioBuffer): void {
+    if (!this.channels.has(id)) this.createChannel(id)
+    const channel = this.channels.get(id)!
+    channel.stop()
+    channel.audioBuffer = buffer
+  }
+
   getAudioBuffer(id: SourceId): AudioBuffer | null {
     return this.channels.get(id)?.audioBuffer ?? null
   }

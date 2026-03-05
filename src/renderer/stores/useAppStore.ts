@@ -82,6 +82,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
     })),
 
+  setSourceLabel: (id, label) =>
+    set((state) => ({
+      sources: state.sources.map((s) =>
+        s.id === id ? { ...s, label } : s
+      ),
+    })),
+
+  soundFontName: null,
+  setSoundFontName: (soundFontName) => set({ soundFontName }),
+
   isPlaying: false,
   isLooping: true,
   listenerY: 0,

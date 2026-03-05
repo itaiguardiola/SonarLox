@@ -25,6 +25,7 @@ export interface IAudioEngine {
   setMasterVolume(volume: number): void
   getAnalyserSnapshot(id: SourceId): AnalyserSnapshot | null
   getAnalyser(id: SourceId): AnalyserNode | null
+  setAudioBuffer(id: SourceId, buffer: AudioBuffer): void
   getAudioBuffer(id: SourceId): AudioBuffer | null
   getChannelIds(): SourceId[]
   getDuration(): number

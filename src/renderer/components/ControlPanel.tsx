@@ -3,6 +3,14 @@ import { useAppStore } from '../stores/useAppStore'
 import { useTransportStore } from '../stores/useTransportStore'
 import { audioEngine } from '../audio/WebAudioEngine'
 import { exportBinauralWav, exportMixedBinauralWav } from '../audio/Exporter'
+import {
+  loadSoundFont,
+  unloadSoundFont,
+  isLoaded as isSoundFontLoaded,
+  renderMidiTrackWithSoundFont,
+} from '../audio/SoundFontPlayer'
+import { renderMidiTrack } from '../audio/MidiSynth'
+import { getAllMidiSourceIds, getTrack } from '../audio/midiTrackCache'
 import { SourceList } from './SourceList'
 
 export function ControlPanel() {
@@ -23,6 +31,9 @@ export function ControlPanel() {
   const setMasterVolume = useAppStore((s) => s.setMasterVolume)
   const selectedOutputDevice = useAppStore((s) => s.selectedOutputDevice)
   const setSelectedOutputDevice = useAppStore((s) => s.setSelectedOutputDevice)
+
+  const soundFontName = useAppStore((s) => s.soundFontName)
+  const setSoundFontName = useAppStore((s) => s.setSoundFontName)
 
   const selectedSourceId = useAppStore((s) => s.selectedSourceId)
   const selectedSource = useAppStore((s) =>
@@ -63,6 +74,48 @@ export function ControlPanel() {
       } catch (err) {
         console.error('Failed to set output device:', err)
       }
+    }
+  }
+
+  const [isLoadingSF, setIsLoadingSF] = useState(false)
+
+  const reRenderMidiTracks = async (useSoundFont: boolean) => {
+    const sources = useAppStore.getState().sources
+    const midiSources = sources.filter((s) => s.sourceType === 'midi-track')
+    for (const source of midiSources) {
+      const trackData = getTrack(source.id)
+      if (!trackData) continue
+      const buffer = useSoundFont
+        ? await renderMidiTrackWithSoundFont(trackData)
+        : await renderMidiTrack(trackData)
+      audioEngine.setAudioBuffer(source.id, buffer)
+    }
+  }
+
+  const handleLoadSoundFont = async () => {
+    if (!window.api) return
+    try {
+      const result = await window.api.openSoundFontFile()
+      if (!result) return
+      setIsLoadingSF(true)
+      await loadSoundFont(result.buffer, result.name ?? 'soundfont.sf2')
+      setSoundFontName(result.name ?? 'soundfont.sf2')
+      await reRenderMidiTracks(true)
+    } catch (err) {
+      console.error('Failed to load SoundFont:', err)
+    } finally {
+      setIsLoadingSF(false)
+    }
+  }
+
+  const handleUnloadSoundFont = async () => {
+    unloadSoundFont()
+    setSoundFontName(null)
+    setIsLoadingSF(true)
+    try {
+      await reRenderMidiTracks(false)
+    } finally {
+      setIsLoadingSF(false)
     }
   }
 
@@ -165,6 +218,7 @@ export function ControlPanel() {
   const sineFrequency = selectedSource?.sineFrequency ?? 440
   const isFileSource = selectedSource?.sourceType === 'file'
   const isToneSource = selectedSource?.sourceType === 'tone'
+  const isMidiSource = selectedSource?.sourceType === 'midi-track'
   const isSineActive = isToneSource && (selectedSource?.audioFileName?.startsWith('Sine') ?? false)
   const volume = selectedSource?.volume ?? 1
   const sourcePosition = selectedSource?.position ?? [0, 0, 0]
@@ -231,6 +285,54 @@ export function ControlPanel() {
 
       <div className="divider" />
 
+      {/* SoundFont */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span className="section-label">SoundFont</span>
+        {soundFontName ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              flex: 1,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {soundFontName}
+            </span>
+            <button
+              className="btn-icon"
+              onClick={handleUnloadSoundFont}
+              disabled={isLoadingSF}
+              title="Unload SoundFont"
+            >
+              x
+            </button>
+          </div>
+        ) : (
+          <button
+            className="btn"
+            onClick={handleLoadSoundFont}
+            disabled={isLoadingSF}
+            style={{ fontSize: 11 }}
+          >
+            {isLoadingSF ? 'Loading...' : 'Load SF2'}
+          </button>
+        )}
+        {isLoadingSF && (
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            color: 'var(--text-muted)',
+          }}>
+            Rendering MIDI tracks...
+          </span>
+        )}
+      </div>
+
+      <div className="divider" />
+
       {/* Source List */}
       <SourceList />
 
@@ -259,7 +361,7 @@ export function ControlPanel() {
                 color: 'var(--text-muted)',
                 marginLeft: 'auto',
               }}>
-                {isFileSource ? 'FILE' : 'TONE'}
+                {isFileSource ? 'FILE' : isToneSource ? 'TONE' : 'MIDI'}
               </span>
             </div>
 
@@ -282,6 +384,17 @@ export function ControlPanel() {
                   </span>
                 )}
               </>
+            )}
+
+            {/* MIDI source: read-only info */}
+            {isMidiSource && selectedSource.audioFileName && (
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                color: 'var(--text-secondary)',
+              }}>
+                {selectedSource.audioFileName}
+              </span>
             )}
 
             {/* Tone source: Sine / Pink Noise */}

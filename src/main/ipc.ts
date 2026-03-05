@@ -24,3 +24,31 @@ ipcMain.handle('open-audio-file', async () => {
   )
   return { buffer: arrayBuffer, name: result.filePaths[0].split(/[\\/]/).pop() }
 })
+
+ipcMain.handle('open-midi-file', async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [{ name: 'MIDI', extensions: ['mid', 'midi'] }],
+    properties: ['openFile']
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  const nodeBuffer = await readFile(result.filePaths[0])
+  const arrayBuffer = nodeBuffer.buffer.slice(
+    nodeBuffer.byteOffset,
+    nodeBuffer.byteOffset + nodeBuffer.byteLength
+  )
+  return { buffer: arrayBuffer, name: result.filePaths[0].split(/[\\/]/).pop() }
+})
+
+ipcMain.handle('open-soundfont-file', async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [{ name: 'SoundFont', extensions: ['sf2'] }],
+    properties: ['openFile']
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  const nodeBuffer = await readFile(result.filePaths[0])
+  const arrayBuffer = nodeBuffer.buffer.slice(
+    nodeBuffer.byteOffset,
+    nodeBuffer.byteOffset + nodeBuffer.byteLength
+  )
+  return { buffer: arrayBuffer, name: result.filePaths[0].split(/[\\/]/).pop() }
+})

@@ -56,6 +56,11 @@ export interface AppState {
   setSourceSineFrequency: (id: SourceId, freq: number) => void
   setSourceMuted: (id: SourceId, muted: boolean) => void
   setSourceSoloed: (id: SourceId, soloed: boolean) => void
+  setSourceLabel: (id: SourceId, label: string) => void
+
+  // SoundFont
+  soundFontName: string | null
+  setSoundFontName: (name: string | null) => void
 
   // Global playback
   isPlaying: boolean
@@ -90,6 +95,8 @@ export interface SaveWavResult {
 
 export interface ElectronAPI {
   openAudioFile: () => Promise<AudioFileResult | null>
+  openMidiFile: () => Promise<AudioFileResult | null>
+  openSoundFontFile: () => Promise<AudioFileResult | null>
   saveWavFile: (buffer: ArrayBuffer, defaultPath?: string) => Promise<SaveWavResult>
 }
 
