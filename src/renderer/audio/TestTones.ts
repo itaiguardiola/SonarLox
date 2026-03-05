@@ -1,4 +1,11 @@
 export function createPinkNoiseBuffer(ctx: AudioContext, duration = 4): AudioBuffer {
+  /**
+   * Creates a pink noise audio buffer using the Voss-McCartney algorithm.
+   * Pink noise has equal energy per octave, making it useful for audio testing and spatialization experiments.
+   * @param ctx - The Web Audio API AudioContext to use for buffer creation
+   * @param duration - The duration of the noise buffer in seconds (default: 4)
+   * @returns An AudioBuffer containing pink noise data
+   */
   const sampleRate = ctx.sampleRate
   const length = sampleRate * duration
   const buffer = ctx.createBuffer(1, length, sampleRate)
