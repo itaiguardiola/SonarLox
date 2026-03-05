@@ -11,20 +11,23 @@ import { audioEngine } from '../audio/WebAudioEngine'
 import { useTransportStore } from '../stores/useTransportStore'
 import { usePluginStore } from './usePluginStore'
 
-class EventEmitter {
-  private listeners: Map<string, Set<Function>> = new Map()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Listener = (...args: any[]) => void
 
-  on(event: string, cb: Function) {
+class EventEmitter {
+  private listeners: Map<string, Set<Listener>> = new Map()
+
+  on(event: string, cb: Listener) {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set())
     this.listeners.get(event)!.add(cb)
     return () => this.off(event, cb)
   }
 
-  off(event: string, cb: Function) {
+  off(event: string, cb: Listener) {
     this.listeners.get(event)?.delete(cb)
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     this.listeners.get(event)?.forEach(cb => cb(...args))
   }
 

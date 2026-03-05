@@ -95,10 +95,13 @@ export function DistanceRings() {
       mat.linewidth = isActive ? 1.5 : 0.8
     }
 
+    // R3F transient update — mutating typed array for GPU upload, not React state
+    /* eslint-disable react-hooks/immutability */
     projPositions[3] = x
     projPositions[4] = 0
     projPositions[5] = z
     projGeometry.attributes.position.needsUpdate = true
+    /* eslint-enable react-hooks/immutability */
   })
 
   return (

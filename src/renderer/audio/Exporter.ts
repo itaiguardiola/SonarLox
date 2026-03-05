@@ -175,7 +175,7 @@ function compute51Gains(position: [number, number, number]): number[] {
 
     // Check if sourceAngle is between a1 and a2 (handling wrap-around)
     let lo = a1
-    let hi = a2
+    const hi = a2
     let angle = sourceAngle
     if (j === 0) {
       // Wrap-around pair (SL to SR through the rear)

@@ -170,6 +170,7 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
         dragOffset.current.set(0, 0, 0)
       }
 
+      // eslint-disable-next-line react-hooks/immutability -- R3F orbit controls toggle
       if (controls) controls.enabled = false
     },
     [camera, controls, sourceId, selectSource, getSource]
@@ -259,6 +260,7 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
         }
       }
 
+      // eslint-disable-next-line react-hooks/immutability -- R3F orbit controls toggle
       if (controls) controls.enabled = true
 
       const source = getSource()

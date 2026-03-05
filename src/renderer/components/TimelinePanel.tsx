@@ -446,6 +446,7 @@ export function TimelinePanel() {
   )
 
   const playheadFraction = duration > 0 ? playheadPosition / duration : 0
+  // eslint-disable-next-line react-hooks/refs -- layout measurement needed during render
   const trackWidth = getTrackWidth()
 
   // Memoize grid lines canvas data url for track backgrounds

@@ -9,7 +9,7 @@ export function VideoScreenBridge() {
 
   useEffect(() => {
     if (!hasVideo) {
-      setVideoEl(null)
+      setVideoEl(null) // eslint-disable-line react-hooks/set-state-in-effect -- intentional clear on video removal
       return
     }
     // Poll for the video element AND wait until it has loaded data
