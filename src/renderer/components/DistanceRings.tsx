@@ -5,11 +5,31 @@ import { Vector3, BufferGeometry, Float32BufferAttribute, LineBasicMaterial, Col
 import { useAppStore } from '../stores/useAppStore'
 import type { Line2 } from 'three-stdlib'
 
+/**
+ * Array of ring radii used for distance visualization in the spatial audio editor
+ */
 const RING_RADII = [2, 4, 6, 8]
+
+/**
+ * Number of segments used to create circular rings
+ */
 const RING_SEGMENTS = 64
+
+/**
+ * Color used for inactive distance rings
+ */
 const INACTIVE_COLOR = new Color('#556677')
+
+/**
+ * Color used for active distance rings
+ */
 const ACTIVE_COLOR = new Color('#00ccff')
 
+/**
+ * Generates points for a circle with the specified radius
+ * @param radius - The radius of the circle to generate
+ * @returns An array of Vector3 points forming a circle
+ */
 function makeCirclePoints(radius: number): Vector3[] {
   const points: Vector3[] = []
   for (let i = 0; i <= RING_SEGMENTS; i++) {
@@ -19,6 +39,11 @@ function makeCirclePoints(radius: number): Vector3[] {
   return points
 }
 
+/**
+ * Renders distance rings and projection line for the selected audio source
+ * Visualizes the distance of the selected source from the listener using concentric rings
+ * and a projection line showing the horizontal distance to the listener
+ */
 export function DistanceRings() {
   const ringRefs = useRef<(Line2 | null)[]>([])
 
