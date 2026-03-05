@@ -34,7 +34,7 @@ export interface GeneratedKeyframes {
 
 // --- Behaviour Parameter Interfaces ---
 
-export interface ClosingWallsParams {
+interface ClosingWallsParams {
   type: 'closing_walls'
   durationBeats?: number
   startRadius?: number
@@ -44,7 +44,7 @@ export interface ClosingWallsParams {
   keyframesPerBeat?: number
 }
 
-export interface PendulumDecayParams {
+interface PendulumDecayParams {
   type: 'pendulum_decay'
   durationBeats?: number
   swingAngle?: number
@@ -54,7 +54,7 @@ export interface PendulumDecayParams {
   keyframesPerBeat?: number
 }
 
-export interface StalkingShadowParams {
+interface StalkingShadowParams {
   type: 'stalking_shadow'
   durationBeats?: number
   radius?: number
@@ -65,7 +65,7 @@ export interface StalkingShadowParams {
   keyframesPerBeat?: number
 }
 
-export interface WhisperApproachParams {
+interface WhisperApproachParams {
   type: 'whisper_approach'
   durationBeats?: number
   startDistance?: number
@@ -75,7 +75,7 @@ export interface WhisperApproachParams {
   keyframesPerBeat?: number
 }
 
-export interface BreathingRadiusParams {
+interface BreathingRadiusParams {
   type: 'breathing_radius'
   durationBeats?: number
   centreDistance?: number
@@ -85,7 +85,7 @@ export interface BreathingRadiusParams {
   keyframesPerBeat?: number
 }
 
-export interface ArrivalSettleParams {
+interface ArrivalSettleParams {
   type: 'arrival_settle'
   durationBeats?: number
   targetPosition?: SourcePosition
@@ -94,7 +94,7 @@ export interface ArrivalSettleParams {
   keyframesPerBeat?: number
 }
 
-export interface HorizonDriftParams {
+interface HorizonDriftParams {
   type: 'horizon_drift'
   durationBeats?: number
   distance?: number
@@ -104,7 +104,7 @@ export interface HorizonDriftParams {
   keyframesPerBeat?: number
 }
 
-export interface FloatDescentParams {
+interface FloatDescentParams {
   type: 'float_descent'
   durationBeats?: number
   startHeight?: number
@@ -116,16 +116,17 @@ export interface FloatDescentParams {
   keyframesPerBeat?: number
 }
 
-export interface PhantomSplitParams {
+interface PhantomSplitParams {
   type: 'phantom_split'
   durationBeats?: number
   positionA?: SourcePosition
   positionB?: SourcePosition
   alternationRate?: number
+  keyframesPerBeat?: number
   blend?: number
 }
 
-export interface VertigoHelixParams {
+interface VertigoHelixParams {
   type: 'vertigo_helix'
   durationBeats?: number
   radius?: number
@@ -136,7 +137,7 @@ export interface VertigoHelixParams {
   keyframesPerBeat?: number
 }
 
-export interface CallResponseParams {
+interface CallResponseParams {
   type: 'call_response'
   durationBeats?: number
   turnBeats?: number
@@ -147,7 +148,7 @@ export interface CallResponseParams {
   keyframesPerBeat?: number
 }
 
-export interface OrbitCounterpointParams {
+interface OrbitCounterpointParams {
   type: 'orbit_counterpoint'
   durationBeats?: number
   radius?: number
@@ -158,7 +159,7 @@ export interface OrbitCounterpointParams {
   keyframesPerBeat?: number
 }
 
-export interface MirrorDanceParams {
+interface MirrorDanceParams {
   type: 'mirror_dance'
   durationBeats?: number
   pathType?: 'arc' | 'figure8'
@@ -188,7 +189,8 @@ export type ChoreographyBehaviour =
 const DEG2RAD = Math.PI / 180
 
 function beatsToSeconds(beats: number, bpm: number): number {
-  return (60 / bpm) * beats
+  const safeBpm = (Number.isFinite(bpm) && bpm > 0) ? bpm : 120
+  return (60 / safeBpm) * beats
 }
 
 function polarToCartesian(angleDeg: number, distance: number, y: number): SourcePosition {
@@ -469,11 +471,11 @@ function phantomSplit(params: PhantomSplitParams, ctx: ChoreographyContext): Gen
   const durationBeats = params.durationBeats ?? 4
   const positionA = params.positionA ?? [-3, 1, -2] as SourcePosition
   const positionB = params.positionB ?? [3, 1, -2] as SourcePosition
-  const alternationRate = params.alternationRate ?? 8
+  const alternationRate = params.alternationRate ?? params.keyframesPerBeat ?? 8
   const blend = Math.max(0, Math.min(1, params.blend ?? 0))
 
   const totalSec = beatsToSeconds(durationBeats, ctx.bpm)
-  const totalAlternations = durationBeats * alternationRate
+  const totalAlternations = Math.min(durationBeats * alternationRate, 256)
   const keyframes: Keyframe[] = []
 
   for (let i = 0; i <= totalAlternations; i++) {
@@ -487,7 +489,7 @@ function phantomSplit(params: PhantomSplitParams, ctx: ChoreographyContext): Gen
       keyframes.push(makeKeyframe(time, pos, easing, ctx.roomBounds))
     } else {
       // Blended: sinusoidal crossfade between A and B
-      const phase = (i / totalAlternations) * totalAlternations * Math.PI
+      const phase = i * Math.PI
       const crossfade = 0.5 - 0.5 * Math.cos(phase)
       // blend controls how much interpolation vs hard-switch: 0 = hard, 1 = full sine
       const mixT = blend * crossfade + (1 - blend) * (i % 2)
