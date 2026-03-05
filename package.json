@@ -8,7 +8,10 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
   },
   "license": "MIT",
   "dependencies": {
@@ -26,6 +29,9 @@
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/archiver": "^7.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -34,6 +40,8 @@
     "@vitejs/plugin-react": "^5.1.4",
     "electron": "^40.7.0",
     "electron-vite": "^5.0.0",
-    "typescript": "^5.9.3"
+    "jsdom": "^25.0.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
   }
 }
