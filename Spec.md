@@ -896,11 +896,106 @@ Source → GainNode → [Effect1] → [Effect2] → PannerNode(HRTF) → masterG
 
 ---
 
+## v1.1: Video Synchronization
+
+### Phase 18: Video Sync
+
+Load a video file and play it in lockstep with the audio transport. Core post-production workflow for film, game cinematics, and VR content.
+
+#### Architecture
+
+- **Main process**: IPC handler returns file path (not buffer) for video files (mp4, webm, mov, mkv)
+- **Store**: `VideoSlice` — videoFilePath, videoFileName, videoOffset (TC offset seconds), videoFrameRate (23.976/24/25/29.97/30/60), isVideoVisible, videoOpacity
+- **Renderer**: HTML5 `<video>` element synced to transport via `useVideoSync` hook
+
+#### Transport Sync
+
+- Play: `video.play()`, set `video.currentTime = playheadPosition - videoOffset`
+- Pause: `video.pause()`
+- Stop: `video.pause(); video.currentTime = 0`
+- Seek: `video.currentTime = seekPosition - videoOffset`
+- Frame-step: arrow keys advance `video.currentTime += 1/frameRate` when paused
+- Drift correction: interval loop nudges `video.currentTime` if drift > 33ms
+
+#### UI Modes
+
+| Mode | Description |
+|---|---|
+| Docked | Video panel between viewport and timeline (resizable divider) |
+| Floating | Detached Electron BrowserWindow (future) |
+| PiP | Picture-in-picture overlay in viewport corner (future) |
+
+v1.1 ships **Docked** mode only.
+
+#### Timecode
+
+SMPTE display `HH:MM:SS:FF` based on configured frame rate. Shown in video panel and transport section.
+
+#### New Files
+
+| File | Purpose |
+|---|---|
+| `src/renderer/components/VideoPanel.tsx` | Video player, timecode, frame controls |
+| `src/renderer/components/sections/VideoSection.tsx` | Control panel: load/unload, offset, framerate, visibility |
+| `src/renderer/stores/slices/VideoSlice.ts` | Video state slice |
+| `src/renderer/hooks/useVideoSync.ts` | Transport-to-video sync hook |
+| `src/renderer/utils/timecode.ts` | SMPTE timecode formatting |
+
+#### Modified Files
+
+| File | Change |
+|---|---|
+| `src/main/ipc.ts` | Add `open-video-file` handler |
+| `src/preload/index.ts` | Expose `openVideoFile` |
+| `src/renderer/types/index.ts` | Add video types, update ElectronAPI |
+| `src/renderer/App.tsx` | Add VideoPanel to layout |
+| `src/renderer/components/ControlPanel.tsx` | Add VideoSection |
+| `src/renderer/stores/useAppStore.ts` | Import VideoSlice |
+| `src/renderer/audio/projectSerializer.ts` | Serialize video settings (path reference, not embedded) |
+
+#### Export
+
+Video sync is authoring-only -- export still produces audio WAV. Video offset stored in project file. Future: mux audio into video container via ffmpeg.
+
+#### Project Serialization
+
+Video reference in `manifest.json` (not embedded in .sonarlox):
+```json
+{
+  "hasVideoSync": true,
+  "video": { "fileName": "scene_04.mp4", "offset": 0.0, "frameRate": 24 }
+}
+```
+Missing video on reopen triggers "locate file" dialog.
+
+#### Implementation Order
+
+1. `timecode.ts` utility + `VideoSlice` store
+2. IPC handler + preload exposure
+3. `useVideoSync` hook (transport -> video element)
+4. `VideoPanel.tsx` (docked mode, video + timecode + frame controls)
+5. `VideoSection.tsx` in control panel
+6. Layout integration in `App.tsx`
+7. Project serialization
+8. Timeline video thumbnail track (stretch goal)
+
+#### Verification
+
+- Load MP4, press play, video and audio play in sync
+- Seek via timeline, video jumps to correct frame
+- Pause, frame-step with arrow keys, single-frame advance
+- Set TC offset, video starts at correct point relative to audio
+- Change framerate, SMPTE display updates
+- Save/reopen project, video reference and offset restored
+- Remove video file, reopen project, "locate file" prompt appears
+- Export audio -- video has no effect on WAV output
+
+---
+
 ## What's Deferred to v2+
 
 - **AI stem separation** (Demucs/HTDemucs — user provides their own stems in v1)
 - **Room acoustics** (configurable room dimensions, materials, convolution reverb — could be a Phase 16 plugin)
-- **Video sync** (import video, attach spatialized audio)
 - **Multi-output routing** (different sources to different physical speakers simultaneously)
 - **Speaker calibration** (see SPEAKER_CALIBRATION_SPEC.md)
 - **Dolby Atmos / 7.1.4 export** (object-based audio with height channels, ADM BWF metadata — could be a Phase 16 exporter plugin)
