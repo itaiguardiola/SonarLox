@@ -9,6 +9,10 @@ import { MAX_SOURCES } from '../types'
 import type { SourceType } from '../types'
 import { useToast } from './Toast'
 
+/**
+ * Component that displays and manages audio sources in the spatial audio editor.
+ * Each source can be a file, tone generator, or MIDI track with associated spatial properties.
+ */
 export function SourceList() {
   const { showToast } = useToast()
   const sources = useAppStore((s) => s.sources)
@@ -30,11 +34,17 @@ export function SourceList() {
     }
   }, [editingId])
 
+  /**
+   * Begins renaming a source by setting the editing state.
+   */
   const startRename = (id: string, currentLabel: string) => {
     setEditingId(id)
     setEditValue(currentLabel)
   }
 
+  /**
+   * Commits the renaming of a source and updates the store.
+   */
   const commitRename = () => {
     if (editingId && editValue.trim()) {
       setSourceLabel(editingId, editValue.trim())
@@ -42,6 +52,10 @@ export function SourceList() {
     setEditingId(null)
   }
 
+  /**
+   * Adds a new audio source of the specified type to the editor.
+   * Initializes audio engine if needed and creates a new channel.
+   */
   const handleAdd = async (type: SourceType) => {
     await audioEngine.init()
     addSource(type)
@@ -50,22 +64,38 @@ export function SourceList() {
     audioEngine.createChannel(newest.id)
   }
 
+  /**
+   * Removes a source from the editor and cleans up associated audio resources.
+   */
   const handleRemove = (id: string) => {
     audioEngine.removeChannel(id)
     deleteTrack(id)
     removeSource(id)
   }
 
+  /**
+   * Toggles the mute state of a source.
+   */
   const handleMuteToggle = (id: string, currentMuted: boolean) => {
     setSourceMuted(id, !currentMuted)
   }
 
+  /**
+   * Toggles the solo state of a source.
+   */
   const handleSoloToggle = (id: string, currentSoloed: boolean) => {
     setSourceSoloed(id, !currentSoloed)
   }
 
+  /**
+   * Tracks the progress of MIDI file loading and rendering.
+   */
   const [midiProgress, setMidiProgress] = useState<{ current: number; total: number; trackName: string } | null>(null)
 
+  /**
+   * Loads and processes a MIDI file, creating new sources for each track.
+   * Supports SoundFont rendering for MIDI note playback.
+   */
   const handleLoadMidi = async () => {
     if (!window.api) return
     try {
