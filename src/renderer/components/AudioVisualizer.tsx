@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import { Color, type Mesh, type MeshBasicMaterial } from 'three'
-import { audioEngine } from '../audio/AudioEngine'
+import { audioEngine } from '../audio/WebAudioEngine'
 import { useAppStore } from '../stores/useAppStore'
 import type { SourceId } from '../types'
 

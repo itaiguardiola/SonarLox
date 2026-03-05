@@ -9,7 +9,7 @@ export const SOURCE_COLORS = [
 
 export const MAX_SOURCES = 8
 
-export type SourceType = 'file' | 'tone'
+export type SourceType = 'file' | 'tone' | 'midi-track'
 
 export interface AudioSource {
   id: SourceId
@@ -21,6 +21,15 @@ export interface AudioSource {
   audioFileName: string | null
   sineFrequency: number
   isMuted: boolean
+  isSoloed: boolean
+}
+
+export interface TransportState {
+  isPlaying: boolean
+  isPaused: boolean
+  playheadPosition: number
+  duration: number
+  isLooping: boolean
 }
 
 export interface CameraPreset {
@@ -46,6 +55,7 @@ export interface AppState {
   setSourceAudioFileName: (id: SourceId, name: string | null) => void
   setSourceSineFrequency: (id: SourceId, freq: number) => void
   setSourceMuted: (id: SourceId, muted: boolean) => void
+  setSourceSoloed: (id: SourceId, soloed: boolean) => void
 
   // Global playback
   isPlaying: boolean
@@ -54,6 +64,12 @@ export interface AppState {
   setIsPlaying: (isPlaying: boolean) => void
   setIsLooping: (isLooping: boolean) => void
   setListenerY: (y: number) => void
+
+  // Master output
+  masterVolume: number
+  setMasterVolume: (vol: number) => void
+  selectedOutputDevice: string | null
+  setSelectedOutputDevice: (id: string | null) => void
 
   // Camera
   cameraPresets: (CameraPreset | null)[]

@@ -1,4 +1,5 @@
 import type { SourceId } from '../types'
+import type { IAudioEngine, AnalyserSnapshot } from './IAudioEngine'
 import { createPinkNoiseBuffer } from './TestTones'
 
 class SourceChannel {
@@ -12,7 +13,7 @@ class SourceChannel {
   isOscillator: boolean = false
   sineFrequency: number = 440
 
-  constructor(private ctx: AudioContext) {
+  constructor(private ctx: AudioContext, masterGain: GainNode) {
     this.gainNode = ctx.createGain()
     this.gainNode.gain.value = 1.0
 
@@ -26,13 +27,13 @@ class SourceChannel {
     this.analyserNode = ctx.createAnalyser()
     this.analyserNode.fftSize = 2048
 
-    // Chain: gain -> panner -> analyser -> destination
+    // Chain: gain -> panner -> analyser -> masterGain
     this.gainNode.connect(this.pannerNode)
     this.pannerNode.connect(this.analyserNode)
-    this.analyserNode.connect(ctx.destination)
+    this.analyserNode.connect(masterGain)
   }
 
-  play(isLooping: boolean): void {
+  play(isLooping: boolean, startTime?: number): void {
     if (!this.audioBuffer) return
     this.stopSource()
 
@@ -42,8 +43,13 @@ class SourceChannel {
     source.connect(this.gainNode)
 
     const offset = this.pauseOffset % this.audioBuffer.duration
-    source.start(0, offset)
-    this.playbackStartTime = this.ctx.currentTime - offset
+    if (startTime !== undefined) {
+      source.start(startTime, offset)
+      this.playbackStartTime = startTime - offset
+    } else {
+      source.start(0, offset)
+      this.playbackStartTime = this.ctx.currentTime - offset
+    }
     this.currentSource = source
     this.isOscillator = false
 
@@ -136,7 +142,6 @@ class SourceChannel {
     if (this.isOscillator && this.currentSource instanceof OscillatorNode) {
       this.currentSource.frequency.value = freq
     }
-    // Only regenerate buffer if this channel is actually playing a sine
     if (this.isOscillator) {
       const duration = 4
       const sampleRate = this.ctx.sampleRate
@@ -176,14 +181,26 @@ class SourceChannel {
   }
 }
 
-class AudioEngine {
+class WebAudioEngine implements IAudioEngine {
   private ctx: AudioContext | null = null
   private channels: Map<SourceId, SourceChannel> = new Map()
   private isLooping: boolean = true
+  private masterGainNode: GainNode | null = null
+  private masterAnalyserNode: AnalyserNode | null = null
+  private transportStartTime: number = 0
+  private _isPlaying: boolean = false
+  private soloedIds: Set<SourceId> = new Set()
 
   async init(): Promise<void> {
     if (!this.ctx) {
       this.ctx = new AudioContext()
+      this.masterGainNode = this.ctx.createGain()
+      this.masterGainNode.gain.value = 1.0
+      this.masterAnalyserNode = this.ctx.createAnalyser()
+      this.masterAnalyserNode.fftSize = 2048
+      // masterGain -> masterAnalyser -> destination
+      this.masterGainNode.connect(this.masterAnalyserNode)
+      this.masterAnalyserNode.connect(this.ctx.destination)
     }
     if (this.ctx.state === 'suspended') {
       await this.ctx.resume()
@@ -191,8 +208,8 @@ class AudioEngine {
   }
 
   createChannel(id: SourceId): void {
-    if (!this.ctx || this.channels.has(id)) return
-    this.channels.set(id, new SourceChannel(this.ctx))
+    if (!this.ctx || !this.masterGainNode || this.channels.has(id)) return
+    this.channels.set(id, new SourceChannel(this.ctx, this.masterGainNode))
   }
 
   removeChannel(id: SourceId): void {
@@ -201,6 +218,7 @@ class AudioEngine {
       channel.dispose()
       this.channels.delete(id)
     }
+    this.soloedIds.delete(id)
   }
 
   async loadFile(id: SourceId, arrayBuffer: ArrayBuffer): Promise<void> {
@@ -216,29 +234,38 @@ class AudioEngine {
     if (!this.channels.has(id)) this.createChannel(id)
     const channel = this.channels.get(id)!
     channel.playTestTone(type, this.isLooping)
+    this._isPlaying = true
+    this.transportStartTime = this.ctx!.currentTime
   }
 
   playAll(): void {
+    if (!this.ctx) return
+    const startTime = this.ctx.currentTime + 0.01 // small lookahead for sample-accurate sync
     for (const channel of this.channels.values()) {
       if (!channel.audioBuffer) continue
       if (channel.isPaused()) {
-        channel.resume(this.isLooping)
+        channel.play(this.isLooping, startTime)
       } else {
-        channel.play(this.isLooping)
+        channel.play(this.isLooping, startTime)
       }
     }
+    this.transportStartTime = startTime
+    this._isPlaying = true
   }
 
   pauseAll(): void {
     for (const channel of this.channels.values()) {
       channel.pause()
     }
+    this._isPlaying = false
   }
 
   stopAll(): void {
     for (const channel of this.channels.values()) {
       channel.stop()
     }
+    this._isPlaying = false
+    this.transportStartTime = 0
   }
 
   hasAnyPaused(): boolean {
@@ -266,12 +293,26 @@ class AudioEngine {
   setMuted(id: SourceId, muted: boolean): void {
     const channel = this.channels.get(id)
     if (!channel) return
-    // When muted, set gain to 0; when unmuted, restore won't work easily
-    // Instead we'll manage this through the gain node value
     if (muted) {
       channel.gainNode.gain.value = 0
     }
     // unmute is handled by AudioBridge setting the real volume
+  }
+
+  setSoloed(id: SourceId, soloed: boolean): void {
+    if (soloed) {
+      this.soloedIds.add(id)
+    } else {
+      this.soloedIds.delete(id)
+    }
+  }
+
+  hasSoloedChannels(): boolean {
+    return this.soloedIds.size > 0
+  }
+
+  isChannelSoloed(id: SourceId): boolean {
+    return this.soloedIds.has(id)
   }
 
   setSineFrequency(id: SourceId, freq: number): void {
@@ -289,9 +330,26 @@ class AudioEngine {
     return this.isLooping
   }
 
+  setMasterVolume(volume: number): void {
+    if (this.masterGainNode) {
+      this.masterGainNode.gain.value = volume
+    }
+  }
+
   setListenerY(y: number): void {
     if (!this.ctx) return
     this.ctx.listener.positionY.value = y
+  }
+
+  getAnalyserSnapshot(id: SourceId): AnalyserSnapshot | null {
+    const channel = this.channels.get(id)
+    if (!channel) return null
+    const analyser = channel.analyserNode
+    const frequency = new Float32Array(analyser.frequencyBinCount)
+    const waveform = new Float32Array(analyser.fftSize)
+    analyser.getFloatFrequencyData(frequency)
+    analyser.getFloatTimeDomainData(waveform)
+    return { frequency, waveform }
   }
 
   getAnalyser(id: SourceId): AnalyserNode | null {
@@ -304,6 +362,27 @@ class AudioEngine {
 
   getChannelIds(): SourceId[] {
     return Array.from(this.channels.keys())
+  }
+
+  getDuration(): number {
+    let max = 0
+    for (const channel of this.channels.values()) {
+      if (channel.audioBuffer) {
+        max = Math.max(max, channel.audioBuffer.duration)
+      }
+    }
+    return max
+  }
+
+  getPlayheadPosition(): number {
+    if (!this.ctx || !this._isPlaying) return 0
+    const elapsed = this.ctx.currentTime - this.transportStartTime
+    const duration = this.getDuration()
+    if (duration === 0) return 0
+    if (this.isLooping) {
+      return elapsed % duration
+    }
+    return Math.min(elapsed, duration)
   }
 
   getAllBufferedSources(): {
@@ -335,11 +414,33 @@ class AudioEngine {
     return result
   }
 
+  async enumerateDevices(): Promise<MediaDeviceInfo[]> {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    return devices.filter((d) => d.kind === 'audiooutput')
+  }
+
+  async setOutputDevice(deviceId: string): Promise<void> {
+    if (!this.ctx) return
+    // setSinkId is available on AudioContext in modern browsers
+    if ('setSinkId' in this.ctx) {
+      await (this.ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(deviceId)
+    }
+  }
+
   dispose(): void {
     for (const channel of this.channels.values()) {
       channel.dispose()
     }
     this.channels.clear()
+    this.soloedIds.clear()
+    if (this.masterGainNode) {
+      this.masterGainNode.disconnect()
+      this.masterGainNode = null
+    }
+    if (this.masterAnalyserNode) {
+      this.masterAnalyserNode.disconnect()
+      this.masterAnalyserNode = null
+    }
     if (this.ctx) {
       this.ctx.close()
       this.ctx = null
@@ -347,4 +448,4 @@ class AudioEngine {
   }
 }
 
-export const audioEngine = new AudioEngine()
+export const audioEngine = new WebAudioEngine()

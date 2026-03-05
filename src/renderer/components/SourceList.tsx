@@ -1,5 +1,5 @@
 import { useAppStore } from '../stores/useAppStore'
-import { audioEngine } from '../audio/AudioEngine'
+import { audioEngine } from '../audio/WebAudioEngine'
 import { MAX_SOURCES } from '../types'
 import type { SourceType } from '../types'
 
@@ -10,6 +10,7 @@ export function SourceList() {
   const addSource = useAppStore((s) => s.addSource)
   const removeSource = useAppStore((s) => s.removeSource)
   const setSourceMuted = useAppStore((s) => s.setSourceMuted)
+  const setSourceSoloed = useAppStore((s) => s.setSourceSoloed)
 
   const handleAdd = async (type: SourceType) => {
     await audioEngine.init()
@@ -26,6 +27,10 @@ export function SourceList() {
 
   const handleMuteToggle = (id: string, currentMuted: boolean) => {
     setSourceMuted(id, !currentMuted)
+  }
+
+  const handleSoloToggle = (id: string, currentSoloed: boolean) => {
+    setSourceSoloed(id, !currentSoloed)
   }
 
   const atMax = sources.length >= MAX_SOURCES
@@ -101,7 +106,17 @@ export function SourceList() {
               }}
               title={source.isMuted ? 'Unmute' : 'Mute'}
             >
-              {source.isMuted ? 'M' : 'S'}
+              M
+            </button>
+            <button
+              className={`btn-icon ${source.isSoloed ? 'btn-icon--soloed' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSoloToggle(source.id, source.isSoloed)
+              }}
+              title={source.isSoloed ? 'Unsolo' : 'Solo'}
+            >
+              S
             </button>
             {sources.length > 1 && (
               <button

@@ -269,6 +269,16 @@ input[type="range"]::-webkit-slider-runnable-track {
   box-shadow: 0 0 6px rgba(232, 64, 87, 0.15);
 }
 
+.btn-icon--soloed {
+  color: var(--accent-amber, #ffcc00);
+  border-color: var(--accent-amber, #ffcc00);
+  background: rgba(255, 204, 0, 0.1);
+}
+
+.btn-icon--soloed:hover {
+  box-shadow: 0 0 6px rgba(255, 204, 0, 0.2);
+}
+
 /* ---- Digital Readout ---- */
 .readout {
   font-family: var(--font-mono);

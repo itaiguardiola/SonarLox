@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import { Vector3, Plane, Raycaster, type Mesh, type MeshStandardMaterial } from 'three'
 import { useAppStore } from '../stores/useAppStore'
-import { audioEngine } from '../audio/AudioEngine'
+import { audioEngine } from '../audio/WebAudioEngine'
 import type { SourceId } from '../types'
 
 const BASE_SCALE = 0.3

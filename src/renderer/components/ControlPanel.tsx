@@ -1,18 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/useAppStore'
-import { audioEngine } from '../audio/AudioEngine'
+import { useTransportStore } from '../stores/useTransportStore'
+import { audioEngine } from '../audio/WebAudioEngine'
 import { exportBinauralWav, exportMixedBinauralWav } from '../audio/Exporter'
 import { SourceList } from './SourceList'
 
 export function ControlPanel() {
-  const isPlaying = useAppStore((s) => s.isPlaying)
-  const setIsPlaying = useAppStore((s) => s.setIsPlaying)
-  const isLooping = useAppStore((s) => s.isLooping)
-  const setIsLooping = useAppStore((s) => s.setIsLooping)
+  const isPlaying = useTransportStore((s) => s.isPlaying)
+  const isPaused = useTransportStore((s) => s.isPaused)
+  const isLooping = useTransportStore((s) => s.isLooping)
+  const play = useTransportStore((s) => s.play)
+  const pause = useTransportStore((s) => s.pause)
+  const stop = useTransportStore((s) => s.stop)
+  const toggleLoop = useTransportStore((s) => s.toggleLoop)
+
   const listenerY = useAppStore((s) => s.listenerY)
   const setListenerY = useAppStore((s) => s.setListenerY)
   const cameraPresets = useAppStore((s) => s.cameraPresets)
   const setCameraCommand = useAppStore((s) => s.setCameraCommand)
+
+  const masterVolume = useAppStore((s) => s.masterVolume)
+  const setMasterVolume = useAppStore((s) => s.setMasterVolume)
+  const selectedOutputDevice = useAppStore((s) => s.selectedOutputDevice)
+  const setSelectedOutputDevice = useAppStore((s) => s.setSelectedOutputDevice)
 
   const selectedSourceId = useAppStore((s) => s.selectedSourceId)
   const selectedSource = useAppStore((s) =>
@@ -23,6 +33,38 @@ export function ControlPanel() {
   const setSourceSineFrequency = useAppStore((s) => s.setSourceSineFrequency)
 
   const [isExporting, setIsExporting] = useState(false)
+  const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([])
+
+  // Enumerate audio output devices
+  useEffect(() => {
+    const loadDevices = async () => {
+      try {
+        const devices = await audioEngine.enumerateDevices()
+        setOutputDevices(devices)
+      } catch {
+        // Device enumeration not supported
+      }
+    }
+    loadDevices()
+
+    const handleChange = () => { loadDevices() }
+    navigator.mediaDevices?.addEventListener('devicechange', handleChange)
+    return () => {
+      navigator.mediaDevices?.removeEventListener('devicechange', handleChange)
+    }
+  }, [])
+
+  const handleDeviceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const deviceId = e.target.value
+    setSelectedOutputDevice(deviceId || null)
+    if (deviceId) {
+      try {
+        await audioEngine.setOutputDevice(deviceId)
+      } catch (err) {
+        console.error('Failed to set output device:', err)
+      }
+    }
+  }
 
   const handleLoadAudio = async () => {
     if (!selectedSourceId) return
@@ -40,25 +82,14 @@ export function ControlPanel() {
     }
   }
 
-  const handlePlay = () => {
-    audioEngine.playAll()
-    setIsPlaying(true)
-  }
-
-  const handlePause = () => {
-    audioEngine.pauseAll()
-    setIsPlaying(false)
-  }
-
-  const handleStop = () => {
-    audioEngine.stopAll()
-    setIsPlaying(false)
-  }
+  const handlePlay = () => { play() }
+  const handlePause = () => { pause() }
+  const handleStop = () => { stop() }
 
   const handleTestTone = async (type: 'sine' | 'pink-noise') => {
     if (!selectedSourceId) return
     await audioEngine.playTestTone(selectedSourceId, type)
-    setIsPlaying(true)
+    useAppStore.getState().setIsPlaying(true)
     const freq = selectedSource?.sineFrequency ?? 440
     setSourceAudioFileName(
       selectedSourceId,
@@ -85,10 +116,9 @@ export function ControlPanel() {
     setSourceVolume(selectedSourceId, v)
   }
 
-  const handleLoopToggle = () => {
-    const next = !isLooping
-    setIsLooping(next)
-    audioEngine.setLooping(next)
+  const handleMasterVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setMasterVolume(v)
   }
 
   const handleExportMix = async () => {
@@ -156,6 +186,47 @@ export function ControlPanel() {
         }}>
           SPATIAL AUDIO EDITOR
         </div>
+      </div>
+
+      <div className="divider" />
+
+      {/* Output Device & Master Volume */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span className="section-label">Output</span>
+        {outputDevices.length > 0 && (
+          <select
+            value={selectedOutputDevice ?? ''}
+            onChange={handleDeviceChange}
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 4,
+              padding: '4px 6px',
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            <option value="">Default Device</option>
+            {outputDevices.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.label || `Device ${d.deviceId.slice(0, 8)}`}
+              </option>
+            ))}
+          </select>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Master Volume</span>
+          <span className="slider-value">{Math.round(masterVolume * 100)}%</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={masterVolume}
+          onChange={handleMasterVolumeChange}
+        />
       </div>
 
       <div className="divider" />
@@ -307,14 +378,14 @@ export function ControlPanel() {
           <button
             className="btn btn--transport btn--danger-subtle"
             onClick={handleStop}
-            disabled={!isPlaying && !audioEngine.hasAnyPaused()}
+            disabled={!isPlaying && !isPaused}
           >
             Stop
           </button>
         </div>
         <button
           className={`btn ${isLooping ? 'btn--active' : ''}`}
-          onClick={handleLoopToggle}
+          onClick={toggleLoop}
           style={{ fontSize: 11 }}
         >
           {isLooping ? 'Loop ON' : 'Loop OFF'}

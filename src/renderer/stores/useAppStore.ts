@@ -15,6 +15,7 @@ function createDefaultSource(index: number, type: SourceType): AudioSource {
     audioFileName: null,
     sineFrequency: 440,
     isMuted: false,
+    isSoloed: false,
   }
 }
 
@@ -74,12 +75,24 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
     })),
 
+  setSourceSoloed: (id, isSoloed) =>
+    set((state) => ({
+      sources: state.sources.map((s) =>
+        s.id === id ? { ...s, isSoloed } : s
+      ),
+    })),
+
   isPlaying: false,
   isLooping: true,
   listenerY: 0,
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setIsLooping: (isLooping) => set({ isLooping }),
   setListenerY: (listenerY) => set({ listenerY }),
+
+  masterVolume: 1.0,
+  setMasterVolume: (masterVolume) => set({ masterVolume }),
+  selectedOutputDevice: null,
+  setSelectedOutputDevice: (selectedOutputDevice) => set({ selectedOutputDevice }),
 
   cameraPresets: [null, null, null, null],
   setCameraPreset: (index, preset) =>
