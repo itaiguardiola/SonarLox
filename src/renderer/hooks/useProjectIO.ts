@@ -7,7 +7,14 @@ import {
   serializeProjectState,
   serializeAudioSources,
   deserializeProjectState,
+  serializeTimeline,
+  deserializeTimeline,
+  serializePluginState,
+  deserializePluginState,
 } from '../audio/projectSerializer'
+import { usePluginStore } from '../plugins/usePluginStore'
+import { loadPlugin, unloadPlugin } from '../plugins/pluginLoader'
+import { rebuildAllEffectChains } from '../plugins/effectChain'
 
 export function useProjectIO() {
   const saveProject = useCallback(async (saveAs?: boolean) => {
@@ -23,7 +30,12 @@ export function useProjectIO() {
     }
 
     const transportState = useTransportStore.getState()
-    const stateJson = serializeProjectState(appState, transportState)
+    const stateJsonRaw = serializeProjectState(appState, transportState)
+    // Inject plugin state into the state JSON
+    const stateObj = JSON.parse(stateJsonRaw)
+    const pluginState = usePluginStore.getState().activePlugins
+    stateObj.plugins = serializePluginState(pluginState)
+    const stateJson = JSON.stringify(stateObj, null, 2)
     const audioFiles = serializeAudioSources(appState.sources)
     const duration = audioEngine.getDuration()
     const sampleRate = 44100 // Default; could read from first buffer
@@ -33,9 +45,11 @@ export function useProjectIO() {
       appState.sources,
       duration,
       sampleRate,
+      undefined,
+      appState.animations,
     )
     const manifestJson = JSON.stringify(manifest, null, 2)
-    const timelineJson = JSON.stringify({ version: '1.0.0', tracks: [] }, null, 2)
+    const timelineJson = serializeTimeline(appState.animations)
 
     const result = await window.api.saveProject({
       filePath,
@@ -80,8 +94,9 @@ export function useProjectIO() {
       audioEngine.removeChannel(id)
     }
 
-    // Deserialize state
+    // Deserialize state and timeline
     const deserialized = deserializeProjectState(result.state)
+    const animations = deserializeTimeline(result.timeline)
 
     // Map source index to audio file
     const audioFileMap = new Map<number, { buffer: ArrayBuffer; meta: Record<string, unknown> }>()
@@ -119,16 +134,50 @@ export function useProjectIO() {
       listenerY: deserialized.listenerY,
       masterVolume: deserialized.masterVolume,
       isLooping: deserialized.isLooping,
+      roomSize: deserialized.roomSize,
       cameraPresets: deserialized.cameraPresets,
       selectedOutputDevice: deserialized.selectedOutputDevice,
       currentProjectPath: result.filePath,
       projectTitle: (result.manifest.title as string) || 'Untitled',
+      animations,
+      isRecordingKeyframes: false,
       isDirty: false,
     })
 
     audioEngine.setLooping(deserialized.isLooping)
     audioEngine.setMasterVolume(deserialized.masterVolume)
     audioEngine.setListenerY(deserialized.listenerY)
+
+    // Restore plugin state
+    const pluginStore = usePluginStore.getState()
+    // Deactivate all current plugins
+    for (const [id] of pluginStore.activePlugins) {
+      unloadPlugin(id)
+      pluginStore.deactivatePlugin(id)
+    }
+    // Load saved plugins
+    const savedPlugins = deserializePluginState(result.state)
+    if (savedPlugins.length > 0) {
+      const available = pluginStore.availablePlugins
+      for (const sp of savedPlugins) {
+        const manifest = available.find((m) => m.id === sp.pluginId)
+        if (!manifest) continue
+        try {
+          const instance = await loadPlugin(manifest)
+          instance.target = sp.target
+          instance.slot = sp.slot
+          instance.enabled = sp.enabled
+          for (const [paramId, value] of Object.entries(sp.parameters)) {
+            instance.parameters[paramId] = value
+            instance.plugin.setParameter(paramId, value)
+          }
+          pluginStore.activatePlugin(instance)
+        } catch {
+          // Plugin not available -- skip silently
+        }
+      }
+      rebuildAllEffectChains()
+    }
   }, [saveProject])
 
   const newProject = useCallback(async () => {
@@ -172,16 +221,26 @@ export function useProjectIO() {
       listenerY: 0,
       masterVolume: 1.0,
       isLooping: true,
+      roomSize: [20, 20],
       cameraPresets: [null, null, null, null],
       currentProjectPath: null,
       projectTitle: 'Untitled',
       isDirty: false,
       soundFontName: null,
+      animations: {},
+      isRecordingKeyframes: false,
     })
 
     audioEngine.setLooping(true)
     audioEngine.setMasterVolume(1.0)
     audioEngine.setListenerY(0)
+
+    // Deactivate all plugins
+    const pluginStore = usePluginStore.getState()
+    for (const [id] of pluginStore.activePlugins) {
+      unloadPlugin(id)
+      pluginStore.deactivatePlugin(id)
+    }
   }, [saveProject])
 
   return { saveProject, openProject, newProject }

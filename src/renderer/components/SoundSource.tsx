@@ -69,6 +69,7 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
   const meshRef = useRef<Mesh>(null)
   const selectSource = useAppStore((s) => s.selectSource)
   const setSourcePosition = useAppStore((s) => s.setSourcePosition)
+  const roomSize = useAppStore((s) => s.roomSize)
   const controls = useThree((s) => s.controls) as { enabled: boolean } | null
   const camera = useThree((s) => s.camera)
   const lastStoreUpdate = useRef(0)
@@ -216,9 +217,15 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
 
       if (!event.ray.intersectPlane(dragPlane.current, hitPoint.current)) return
 
-      const x = clamp(hitPoint.current.x - dragOffset.current.x, MIN_BOUNDS[0], MAX_BOUNDS[0])
-      const y = clamp(hitPoint.current.y - dragOffset.current.y, MIN_BOUNDS[1], MAX_BOUNDS[1])
-      const z = clamp(hitPoint.current.z - dragOffset.current.z, MIN_BOUNDS[2], MAX_BOUNDS[2])
+      const [width, depth] = roomSize
+      const minX = -width / 2
+      const maxX = width / 2
+      const minZ = -depth / 2
+      const maxZ = depth / 2
+
+      const x = clamp(hitPoint.current.x - dragOffset.current.x, minX, maxX)
+      const y = clamp(hitPoint.current.y - dragOffset.current.y, 0, 10)
+      const z = clamp(hitPoint.current.z - dragOffset.current.z, minZ, maxZ)
 
       const [, curY] = source.position
       const [, , curZ] = source.position
@@ -257,6 +264,7 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
       const source = getSource()
       if (source) {
         const [x, y, z] = source.position
+        useAppStore.getState().recordHistory('Move source')
         commitPosition(x, y, z, true)
       }
     },

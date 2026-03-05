@@ -687,7 +687,7 @@ interface TransportState {
 - Error handling (invalid files, unsupported formats, audio context resume)
 - App icon and window title
 
-### Phase 15: Keyframed Position Animation (Est. 3-4 sessions) — CLOUD + LOCAL
+### Phase 15: Keyframed Position Animation (COMPLETE)
 
 Animate source positions over time. During playback and export, sources move along authored paths instead of staying static.
 
@@ -801,7 +801,7 @@ Updates to `TimelinePanel.tsx`:
 - Save project, reopen, confirm keyframes restored and animation plays back correctly
 - Record mode: play + drag source, stop, replay, confirm motion replays
 
-### Phase 16: Plugin System (Est. 3-4 sessions) — CLOUD + LOCAL
+### Phase 16: Plugin System (COMPLETE)
 
 Extensible plugin architecture allowing third-party audio processors, visualizers, and exporters.
 

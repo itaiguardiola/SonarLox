@@ -48,3 +48,18 @@ release/
 
 # Crash reports
 crash-reports/
+
+# Temporary files
+*~
+*.tmp
+*.temp
+
+# Build artifacts
+*.build.js
+*.bundle.js
+
+# Package files
+*.tar.gz
+*.tgz
+*.zip
+*.rar

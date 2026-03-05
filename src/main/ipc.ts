@@ -2,6 +2,7 @@ import { ipcMain, dialog } from 'electron'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { dirname, resolve } from 'path'
 import { saveProject, openProject } from './projectIO'
+import { scanPlugins, readPluginScript, getPluginsDir } from './pluginScanner'
 
 ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer, defaultPath?: string) => {
   const result = await dialog.showSaveDialog({
@@ -134,6 +135,19 @@ ipcMain.handle('show-confirm-dialog', async (_event, options: {
     cancelId: options.cancelId ?? 1,
   })
   return result.response
+})
+
+// Plugin system handlers
+ipcMain.handle('plugins:scan', async () => {
+  return await scanPlugins()
+})
+
+ipcMain.handle('plugins:read-script', async (_event, pluginId: string) => {
+  return await readPluginScript(pluginId)
+})
+
+ipcMain.handle('plugins:get-dir', async () => {
+  return getPluginsDir()
 })
 
 ipcMain.handle('open-soundfont-file', async () => {

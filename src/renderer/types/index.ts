@@ -115,9 +115,11 @@ export interface AppState {
   isPlaying: boolean
   isLooping: boolean
   listenerY: number
+  roomSize: [number, number] // [width, depth]
   setIsPlaying: (isPlaying: boolean) => void
   setIsLooping: (isLooping: boolean) => void
   setListenerY: (y: number) => void
+  setRoomSize: (size: [number, number]) => void
 
   // Master output
   masterVolume: number
@@ -155,6 +157,23 @@ export interface AppState {
   setCameraPreset: (index: number, preset: CameraPreset | null) => void
   cameraCommand: CameraCommand
   setCameraCommand: (cmd: CameraCommand) => void
+
+  // History (Undo/Redo)
+  undoStack: HistoryState[]
+  redoStack: HistoryState[]
+  recordHistory: (label?: string) => void
+  undo: () => void
+  redo: () => void
+}
+
+/**
+ * Snapshot of undoable state
+ */
+export interface HistoryState {
+  label: string
+  sources: AudioSource[]
+  animations: Record<SourceId, SourceAnimation>
+  pluginState: import('../plugins/types').SerializedPluginState[]
 }
 
 /**
@@ -236,6 +255,9 @@ export interface ElectronAPI {
     defaultId?: number
     cancelId?: number
   }) => Promise<number>
+  scanPlugins: () => Promise<import('../plugins/types').PluginManifest[]>
+  readPluginScript: (pluginId: string) => Promise<string | null>
+  getPluginsDir: () => Promise<string>
 }
 
 declare global {

@@ -134,6 +134,18 @@ class SourceChannel {
   }
 
   /**
+   * Sets the playhead position for this channel.
+   */
+  setPlayheadPosition(pos: number, isPlaying: boolean, isLooping: boolean, startTime?: number): void {
+    if (!this.audioBuffer) return
+    this.pauseOffset = pos % this.audioBuffer.duration
+    
+    if (isPlaying) {
+      this.play(isLooping, startTime)
+    }
+  }
+
+  /**
    * Internal method to stop and disconnect the current audio source.
    */
   private stopSource(): void {
@@ -508,6 +520,28 @@ class WebAudioEngine implements IAudioEngine {
   }
 
   /**
+   * Sets the playhead position for all audio channels.
+   */
+  setPlayheadPosition(pos: number): void {
+    if (!this.ctx) return
+    const duration = this.getDuration()
+    const offset = duration > 0 ? pos % duration : 0
+    
+    // Use a small lookahead for sync if playing
+    const startTime = this._isPlaying ? this.ctx.currentTime + 0.01 : 0
+    
+    for (const channel of this.channels.values()) {
+      channel.setPlayheadPosition(offset, this._isPlaying, this.isLooping, startTime)
+    }
+    
+    if (this._isPlaying) {
+      this.transportStartTime = startTime - offset
+    } else {
+      this.transportStartTime = this.ctx.currentTime - offset
+    }
+  }
+
+  /**
    * Gets the current playhead position.
    */
   getPlayheadPosition(): number {
@@ -570,6 +604,30 @@ class WebAudioEngine implements IAudioEngine {
     if ('setSinkId' in this.ctx) {
       await (this.ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(deviceId)
     }
+  }
+
+  /**
+   * Returns the underlying AudioContext.
+   */
+  getAudioContext(): AudioContext | null {
+    return this.ctx
+  }
+
+  /**
+   * Returns the gain and panner nodes for a source channel.
+   */
+  getChannelNodes(id: SourceId): { gainNode: GainNode; pannerNode: PannerNode } | null {
+    const channel = this.channels.get(id)
+    if (!channel) return null
+    return { gainNode: channel.gainNode, pannerNode: channel.pannerNode }
+  }
+
+  /**
+   * Returns the master gain and analyser nodes.
+   */
+  getMasterNodes(): { masterGainNode: GainNode; masterAnalyserNode: AnalyserNode } | null {
+    if (!this.masterGainNode || !this.masterAnalyserNode) return null
+    return { masterGainNode: this.masterGainNode, masterAnalyserNode: this.masterAnalyserNode }
   }
 
   /**

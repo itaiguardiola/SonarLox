@@ -8,6 +8,7 @@ import { AudioBridge } from './AudioBridge'
 import { DistanceRings } from './DistanceRings'
 import { MotionPath } from './MotionPath'
 import { AudioVisualizer } from './AudioVisualizer'
+import { PluginVisualizers } from './PluginVisualizers'
 import { CameraManager } from './CameraManager'
 import { useAppStore } from '../stores/useAppStore'
 
@@ -18,6 +19,7 @@ import { useAppStore } from '../stores/useAppStore'
  */
 export function Viewport() {
   const sourceIds = useAppStore(useShallow((s) => s.sources.map((src) => src.id)))
+  const roomSize = useAppStore((s) => s.roomSize)
 
   return (
     <Canvas
@@ -28,7 +30,7 @@ export function Viewport() {
       <directionalLight position={[5, 8, 5]} intensity={0.8} />
       <OrbitControls makeDefault />
       <CameraManager />
-      <gridHelper args={[20, 20, '#444466', '#333355']} />
+      <gridHelper args={[Math.max(roomSize[0], roomSize[1]), Math.max(roomSize[0], roomSize[1]), '#444466', '#333355']} />
       <Room />
       <Listener />
       {sourceIds.map((id) => (
@@ -40,6 +42,7 @@ export function Viewport() {
       {sourceIds.map((id) => (
         <AudioVisualizer key={id} sourceId={id} />
       ))}
+      <PluginVisualizers />
     </Canvas>
   )
 }

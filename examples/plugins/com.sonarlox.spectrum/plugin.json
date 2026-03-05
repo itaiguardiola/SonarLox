@@ -1,0 +1,19 @@
+{
+  "id": "com.sonarlox.spectrum",
+  "name": "Spectrum Visualizer",
+  "version": "1.0.0",
+  "description": "3D spectrum bars for all active sources",
+  "author": "SonarLox team",
+  "type": "visualizer",
+  "main": "index.js",
+  "parameters": [
+    {
+      "id": "scale",
+      "label": "Height Scale",
+      "type": "float",
+      "defaultValue": 1.0,
+      "min": 0.1,
+      "max": 5.0
+    }
+  ]
+}

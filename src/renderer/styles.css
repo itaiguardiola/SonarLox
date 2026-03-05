@@ -728,3 +728,50 @@ input[type="range"]::-webkit-slider-runnable-track {
     transform: translateY(10px) scale(0.96);
   }
 }
+
+/* ---- Record Button ---- */
+.btn--record-active {
+  background: rgba(232, 64, 87, 0.15);
+  border-color: var(--accent-red-dim);
+  color: var(--accent-red);
+}
+
+.btn--record-active:hover:not(:disabled) {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 10px rgba(232, 64, 87, 0.2);
+}
+
+/* ---- Keyframe Context Menu ---- */
+.kf-context-menu {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 4px 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  min-width: 120px;
+}
+
+.kf-context-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.kf-context-menu button:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+.kf-context-divider {
+  height: 1px;
+  background: var(--border-default);
+  margin: 3px 0;
+}

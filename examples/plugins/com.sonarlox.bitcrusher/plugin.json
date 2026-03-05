@@ -1,0 +1,27 @@
+{
+  "id": "com.sonarlox.bitcrusher",
+  "name": "Bitcrusher",
+  "version": "1.0.0",
+  "description": "Digital distortion effect that reduces bit depth and sample rate.",
+  "author": "SonarLox team",
+  "type": "audio-effect",
+  "main": "index.js",
+  "parameters": [
+    {
+      "id": "bits",
+      "label": "Bit Depth",
+      "type": "int",
+      "defaultValue": 8,
+      "min": 1,
+      "max": 16
+    },
+    {
+      "id": "downsample",
+      "label": "Downsample",
+      "type": "int",
+      "defaultValue": 1,
+      "min": 1,
+      "max": 40
+    }
+  ]
+}

@@ -27,6 +27,9 @@ if (process.contextIsolated) {
       buttons?: string[]
       defaultId?: number
       cancelId?: number
-    }) => ipcRenderer.invoke('show-confirm-dialog', options) as Promise<number>
+    }) => ipcRenderer.invoke('show-confirm-dialog', options) as Promise<number>,
+    scanPlugins: () => ipcRenderer.invoke('plugins:scan'),
+    readPluginScript: (pluginId: string) => ipcRenderer.invoke('plugins:read-script', pluginId) as Promise<string | null>,
+    getPluginsDir: () => ipcRenderer.invoke('plugins:get-dir') as Promise<string>,
   })
 }

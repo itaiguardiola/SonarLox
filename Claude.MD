@@ -25,6 +25,11 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
   - `useTransportStore` (src/renderer/stores/useTransportStore.ts) — transport state (play/pause/stop/seek/loop), playhead position via rAF loop
 - Audio graph (live): per-source gain -> panner(HRTF) -> analyser -> masterGain -> masterAnalyser -> destination
 - Audio graph (5.1 export): per-source -> gain(volume*vbapGain) -> [LFE: 120Hz lowpass] -> channelMerger(6) -> destination
+- Plugin system: 
+  - Audio effects: inserted between gainNode and pannerNode (per-source) or between masterGain and masterAnalyser (master).
+  - Visualizers: Rendered into R3F scene using custom `render` methods.
+  - Exporters: Custom formats added to ExportDialog.
+  - Serialization: Active plugins and parameters saved in project `.sonarlox` files.
 - 3D source position syncs to Web Audio PannerNode on every frame via AudioBridge
 - AudioBridge also handles solo logic (if any soloed, non-soloed get gain=0) and master volume
 - Export respects solo/mute state (matches playback) and listener Y position
@@ -64,6 +69,8 @@ Open-source 3D spatial audio editor (MIT License). Electron desktop app — load
 - Test master volume: slider affects overall output
 - Test device selector: dropdown lists available audio output devices
 - Test keyboard shortcuts: Space toggles play, 1-8 selects sources, Delete removes
+- Test plugins: Enable "Simple Reverb" on a source, confirm effect is audible. Enable "Spectrum Visualizer" and confirm bars appear.
+- Test plugin persistence: Save project with an active plugin and custom parameters, reload, confirm settings are restored.
 
 ## Model Routing
 

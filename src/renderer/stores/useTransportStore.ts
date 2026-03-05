@@ -83,9 +83,7 @@ export const useTransportStore = create<TransportStoreState>((set, get) => ({
   },
 
   seek: (_position: number) => {
-    // Seeking requires stopping and restarting with offset – simplified for now
-    // Full seek support would require setting pauseOffset on all channels
-    // For now, just update the visual playhead
+    audioEngine.setPlayheadPosition(_position)
     set({ playheadPosition: _position })
   },
 

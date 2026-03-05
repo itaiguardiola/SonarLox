@@ -1,0 +1,27 @@
+{
+  "id": "com.sonarlox.reverb",
+  "name": "Simple Reverb",
+  "version": "1.0.0",
+  "description": "Impulse response convolution reverb with dry/wet control",
+  "author": "SonarLox team",
+  "type": "audio-effect",
+  "main": "index.js",
+  "parameters": [
+    {
+      "id": "wet",
+      "label": "Wet Mix",
+      "type": "float",
+      "defaultValue": 0.3,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "id": "dry",
+      "label": "Dry Mix",
+      "type": "float",
+      "defaultValue": 0.7,
+      "min": 0,
+      "max": 1
+    }
+  ]
+}

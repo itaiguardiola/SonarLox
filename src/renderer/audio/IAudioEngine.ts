@@ -128,6 +128,11 @@ export interface IAudioEngine {
   getDuration(): number
   
   /**
+   * Sets the current playhead position in seconds across all sources.
+   */
+  setPlayheadPosition(pos: number): void
+  
+  /**
    * Returns the current playhead position in seconds across all sources.
    */
   getPlayheadPosition(): number
@@ -162,6 +167,16 @@ export interface IAudioEngine {
    */
   setOutputDevice(deviceId: string): Promise<void>
   
+  /**
+   * Returns the underlying AudioContext, or null if not initialized.
+   */
+  getAudioContext(): AudioContext | null
+
+  /**
+   * Returns the gain and panner nodes for a source channel, for plugin effect chain insertion.
+   */
+  getChannelNodes(id: SourceId): { gainNode: GainNode; pannerNode: PannerNode } | null
+
   /**
    * Disposes of all resources used by the audio engine, releasing memory and stopping audio processing.
    */

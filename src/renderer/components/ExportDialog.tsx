@@ -9,9 +9,11 @@ import {
 } from '../audio/Exporter'
 import type { ExportSource } from '../audio/Exporter'
 import { useToast } from './Toast'
+import { usePluginStore } from '../plugins/usePluginStore'
+import type { ExporterPlugin, ExporterSourceData } from '../plugins/types'
 
 type ExportType = 'mix' | 'stems'
-type RenderMode = 'binaural' | '5.1' | 'both'
+type RenderMode = 'binaural' | '5.1' | 'both' | `plugin:${string}`
 
 interface ExportDialogProps {
   isOpen: boolean
@@ -27,6 +29,12 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
 
   const isExporting = useAppStore((s) => s.isExporting)
   const exportProgress = useAppStore((s) => s.exportProgress)
+
+  // Get active exporter plugins
+  const activePlugins = usePluginStore((s) => s.activePlugins)
+  const exporterPlugins = Array.from(activePlugins.values()).filter(
+    (p) => p.manifest.type === 'exporter' && p.enabled
+  )
 
   if (!isOpen) return null
 
@@ -47,9 +55,9 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
     return filteredSources
       .map((s) => {
         const buf = audioEngine.getAudioBuffer(s.id)
-        return buf
-          ? { audioBuffer: buf, position: s.position, volume: s.volume }
-          : null
+        if (!buf) return null
+        const src: ExportSource = { audioBuffer: buf, position: s.position, volume: s.volume, sourceId: s.id }
+        return src
       })
       .filter((s): s is ExportSource => s !== null)
   }
@@ -75,7 +83,7 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   }
 
   async function handleExport() {
-    const { setIsExporting, setExportProgress, listenerY } =
+    const { setIsExporting, setExportProgress, listenerY, animations } =
       useAppStore.getState()
     const filteredSources = getExportableSources()
     if (filteredSources.length === 0) return
@@ -86,10 +94,12 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
     setExportProgress(0)
 
     try {
-      if (exportType === 'mix') {
-        await exportMix(filteredSources, listenerY, setExportProgress)
+      if (renderMode.startsWith('plugin:')) {
+        await exportWithPlugin(filteredSources, listenerY, setExportProgress)
+      } else if (exportType === 'mix') {
+        await exportMix(filteredSources, listenerY, setExportProgress, animations)
       } else {
-        await exportStems(filteredSources, listenerY, setExportProgress)
+        await exportStems(filteredSources, listenerY, setExportProgress, animations)
       }
     } catch {
       showToast('Export failed', 'error')
@@ -102,7 +112,8 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   async function exportMix(
     filteredSources: ReturnType<typeof getExportableSources>,
     listenerY: number,
-    setProgress: (p: number) => void
+    setProgress: (p: number) => void,
+    animations: ReturnType<typeof useAppStore.getState>['animations'],
   ) {
     const exportSources = buildExportSources(filteredSources)
     if (exportSources.length === 0) return
@@ -111,14 +122,14 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
 
     if (renderMode === 'binaural' || renderMode === 'both') {
       jobs.push(async () => {
-        const wav = await exportMixedBinauralWav(exportSources, listenerY)
+        const wav = await exportMixedBinauralWav(exportSources, listenerY, animations)
         await window.api.saveWavFile(wav, 'mix_binaural.wav')
       })
     }
 
     if (renderMode === '5.1' || renderMode === 'both') {
       jobs.push(async () => {
-        const wav = await export51Wav(exportSources, listenerY)
+        const wav = await export51Wav(exportSources, listenerY, animations)
         await window.api.saveWavFile(wav, 'mix_51.wav')
       })
     }
@@ -133,7 +144,8 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   async function exportStems(
     filteredSources: ReturnType<typeof getExportableSources>,
     listenerY: number,
-    setProgress: (p: number) => void
+    setProgress: (p: number) => void,
+    animations: ReturnType<typeof useAppStore.getState>['animations'],
   ) {
     const dir = await window.api.selectDirectory()
     if (!dir) {
@@ -161,7 +173,9 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
           buf,
           source.position,
           source.volume,
-          listenerY
+          listenerY,
+          source.id,
+          animations,
         )
         const filename = stemFilename(
           source.label,
@@ -179,7 +193,9 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
           buf,
           source.position,
           source.volume,
-          listenerY
+          listenerY,
+          source.id,
+          animations,
         )
         const filename = stemFilename(
           source.label,
@@ -191,6 +207,35 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
         setProgress(completed / totalJobs)
       }
     }
+  }
+
+  async function exportWithPlugin(
+    filteredSources: ReturnType<typeof getExportableSources>,
+    listenerY: number,
+    setProgress: (p: number) => void,
+  ) {
+    const pluginId = renderMode.replace('plugin:', '')
+    const instance = activePlugins.get(pluginId)
+    if (!instance) return
+
+    const exporter = instance.plugin as ExporterPlugin
+    const sourceData: ExporterSourceData[] = filteredSources
+      .map((s) => {
+        const buf = audioEngine.getAudioBuffer(s.id)
+        if (!buf) return null
+        return { id: s.id, audioBuffer: buf, position: s.position, volume: s.volume, label: s.label }
+      })
+      .filter((s): s is ExporterSourceData => s !== null)
+
+    if (sourceData.length === 0) return
+
+    setProgress(0)
+    const data = await exporter.export(sourceData, listenerY)
+    setProgress(0.9)
+
+    const ext = exporter.fileExtension ?? 'bin'
+    await window.api.saveWavFile(data, `export.${ext}`)
+    setProgress(1)
   }
 
   function handleCancel() {
@@ -286,6 +331,18 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
               />
               Both
             </label>
+            {exporterPlugins.map((ep) => (
+              <label key={ep.manifest.id} className="export-radio-label">
+                <input
+                  type="radio"
+                  name="renderMode"
+                  checked={renderMode === `plugin:${ep.manifest.id}`}
+                  onChange={() => setRenderMode(`plugin:${ep.manifest.id}`)}
+                  disabled={isExporting}
+                />
+                {(ep.plugin as ExporterPlugin).exportLabel ?? ep.manifest.name}
+              </label>
+            ))}
           </div>
         </div>
 

@@ -1,109 +1,74 @@
-import { useEffect } from 'react'
+import { useCallback } from 'react'
 import { Viewport } from './components/Viewport'
 import { ControlPanel } from './components/ControlPanel'
 import { TimelinePanel } from './components/TimelinePanel'
-import { ToastProvider } from './components/Toast'
+import { ToastProvider, useToast } from './components/Toast'
 import { useAppStore } from './stores/useAppStore'
-import { useTransportStore } from './stores/useTransportStore'
 import { audioEngine } from './audio/WebAudioEngine'
 import { useProjectIO } from './hooks/useProjectIO'
-import { deleteTrack } from './audio/midiTrackCache'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
 export default function App() {
   const { saveProject, openProject } = useProjectIO()
+  const { showToast } = useToast()
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts(saveProject, openProject)
 
-      // Ctrl+S: save project
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault()
-        if (e.shiftKey) {
-          saveProject(true) // save as
-        } else {
-          saveProject()
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+
+    const { addSource, sources, setSourceAudioFileName } = useAppStore.getState()
+    
+    for (const file of files) {
+      const isAudio = /\.(wav|mp3|ogg|flac)$/i.test(file.name)
+      const isMidi = /\.mid$/i.test(file.name)
+
+      if (isAudio || isMidi) {
+        if (sources.length >= 8) {
+          showToast('Maximum 8 sources reached', 'error')
+          break
         }
-        return
-      }
 
-      // Ctrl+O: open project
-      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
-        e.preventDefault()
-        openProject()
-        return
-      }
-
-      const { sources, selectSource, removeSource, selectedSourceId } = useAppStore.getState()
-      const transport = useTransportStore.getState()
-
-      // R: toggle keyframe recording
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault()
-        const { isRecordingKeyframes, setIsRecordingKeyframes } = useAppStore.getState()
-        setIsRecordingKeyframes(!isRecordingKeyframes)
-        return
-      }
-
-      // Space: toggle play/pause
-      if (e.code === 'Space') {
-        e.preventDefault()
-        if (transport.isPlaying) {
-          transport.pause()
-        } else if (audioEngine.hasAnyBuffer()) {
-          transport.play()
-        }
-        return
-      }
-
-      // 1-8: select source by index
-      const num = parseInt(e.key)
-      if (num >= 1 && num <= 8 && num <= sources.length) {
-        e.preventDefault()
-        selectSource(sources[num - 1].id)
-        return
-      }
-
-      // Delete/Backspace: remove selected source
-      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedSourceId) {
-        e.preventDefault()
-        if (sources.length > 1) {
-          const source = sources.find((s) => s.id === selectedSourceId)
-          const name = source?.label ?? 'this source'
-          if (window.api?.showConfirmDialog) {
-            window.api.showConfirmDialog({
-              message: `Remove "${name}"?`,
-              detail: 'This will remove the source and its audio from the session.',
-              buttons: ['Remove', 'Cancel'],
-              defaultId: 0,
-              cancelId: 1,
-            }).then((response) => {
-              if (response === 0) {
-                audioEngine.removeChannel(selectedSourceId)
-                deleteTrack(selectedSourceId)
-                removeSource(selectedSourceId)
-              }
-            })
+        try {
+          const buffer = await file.arrayBuffer()
+          addSource(isMidi ? 'midi-track' : 'file')
+          
+          const state = useAppStore.getState()
+          const newSource = state.sources[state.sources.length - 1]
+          
+          if (isAudio) {
+            await audioEngine.loadFile(newSource.id, buffer)
+            setSourceAudioFileName(newSource.id, file.name)
+            showToast(`Added audio: ${file.name}`, 'success')
           } else {
-            audioEngine.removeChannel(selectedSourceId)
-            deleteTrack(selectedSourceId)
-            removeSource(selectedSourceId)
+            await audioEngine.loadFile(newSource.id, buffer)
+            setSourceAudioFileName(newSource.id, file.name)
+            showToast(`Added MIDI: ${file.name}`, 'success')
           }
+        } catch (err) {
+          showToast(`Failed to load ${file.name}`, 'error')
         }
-        return
       }
     }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [saveProject, openProject])
+  }, [showToast])
 
   return (
     <ToastProvider>
-      <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
+      <div 
+        style={{ display: 'flex', width: '100vw', height: '100vh' }}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
         {/* Left: Viewport + Timeline stacked */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ flex: 1, background: '#08090d', minHeight: 0 }}>
