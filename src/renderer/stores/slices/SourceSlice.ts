@@ -5,11 +5,13 @@ export interface SourceSlice {
   sources: AudioSource[]
   selectedSourceId: SourceId | null
   addSource: (type: SourceType) => void
+  addSourceRaw: (source: AudioSource) => void
   removeSource: (id: SourceId) => void
   selectSource: (id: SourceId | null) => void
   setSourcePosition: (id: SourceId, position: SourcePosition) => void
   setSourceVolume: (id: SourceId, volume: number) => void
   setSourceAudioFileName: (id: SourceId, name: string | null) => void
+  setSourceAudioFilePath: (id: SourceId, path: string | null) => void
   setSourceSineFrequency: (id: SourceId, freq: number) => void
   setSourceMuted: (id: SourceId, muted: boolean) => void
   setSourceSoloed: (id: SourceId, soloed: boolean) => void
@@ -27,6 +29,7 @@ function createDefaultSource(index: number, type: SourceType): AudioSource {
     volume: 1.0,
     color: SOURCE_COLORS[(index - 1) % SOURCE_COLORS.length],
     audioFileName: null,
+    audioFilePath: null,
     sineFrequency: 440,
     isMuted: false,
     isSoloed: false,
@@ -34,7 +37,7 @@ function createDefaultSource(index: number, type: SourceType): AudioSource {
 }
 
 export const createSourceSlice: StateCreator<AppState, [], [], SourceSlice> = (set, get) => ({
-  sources: [createDefaultSource(1, 'file')],
+  sources: [],
   selectedSourceId: null,
 
   addSource: (type: SourceType) => {
@@ -46,10 +49,16 @@ export const createSourceSlice: StateCreator<AppState, [], [], SourceSlice> = (s
     set({ sources: [...sources, newSource], selectedSourceId: newSource.id, isDirty: true })
   },
 
+  addSourceRaw: (source: AudioSource) => {
+    const { sources } = get()
+    if (sources.length >= MAX_SOURCES) return
+    set({ sources: [...sources, source], isDirty: true })
+  },
+
   removeSource: (id: SourceId) => {
     get().recordHistory('Remove source')
     const { sources, selectedSourceId, animations } = get()
-    if (sources.length <= 1) return
+    if (sources.length === 0) return
     const filtered = sources.filter((s) => s.id !== id)
     const newSelected =
       selectedSourceId === id ? filtered[0]?.id ?? null : selectedSourceId
@@ -78,6 +87,13 @@ export const createSourceSlice: StateCreator<AppState, [], [], SourceSlice> = (s
         s.id === id ? { ...s, audioFileName } : s
       ),
       isDirty: true,
+    })),
+
+  setSourceAudioFilePath: (id, audioFilePath) =>
+    set((state) => ({
+      sources: state.sources.map((s) =>
+        s.id === id ? { ...s, audioFilePath } : s
+      ),
     })),
 
   setSourceSineFrequency: (id, sineFrequency) =>

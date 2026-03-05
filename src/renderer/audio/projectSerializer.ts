@@ -150,6 +150,7 @@ export function deserializeProjectState(stateJson: Record<string, unknown>): Des
     volume: src.volume ?? 1.0,
     color: src.color ?? '#ff6622',
     audioFileName: src.audioFile ?? null,
+    audioFilePath: null,
     sineFrequency: src.sineFrequency ?? 440,
     isMuted: src.muted ?? false,
     isSoloed: src.soloed ?? false,

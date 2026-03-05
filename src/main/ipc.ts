@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { dirname, resolve } from 'path'
 import { saveProject, openProject } from './projectIO'
 import { scanPlugins, readPluginScript, getPluginsDir, importPlugin, removePlugin, openPluginsFolder } from './pluginScanner'
+import { probeDemucs, runDemucs, cancelDemucs, installDemucs } from './demucs/runner'
 
 ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer, defaultPath?: string) => {
   const result = await dialog.showSaveDialog({
@@ -20,12 +21,13 @@ ipcMain.handle('open-audio-file', async () => {
     properties: ['openFile']
   })
   if (result.canceled || !result.filePaths.length) return null
-  const nodeBuffer = await readFile(result.filePaths[0])
+  const filePath = result.filePaths[0]
+  const nodeBuffer = await readFile(filePath)
   const arrayBuffer = nodeBuffer.buffer.slice(
     nodeBuffer.byteOffset,
     nodeBuffer.byteOffset + nodeBuffer.byteLength
   )
-  return { buffer: arrayBuffer, name: result.filePaths[0].split(/[\\/]/).pop() }
+  return { buffer: arrayBuffer, name: filePath.split(/[\\/]/).pop(), filePath }
 })
 
 ipcMain.handle('open-midi-file', async () => {
@@ -190,4 +192,30 @@ ipcMain.handle('open-soundfont-file', async () => {
     nodeBuffer.byteOffset + nodeBuffer.byteLength
   )
   return { buffer: arrayBuffer, name: result.filePaths[0].split(/[\\/]/).pop() }
+})
+
+// Demucs stem separation handlers
+ipcMain.handle('demucs:probe', async () => {
+  return await probeDemucs()
+})
+
+ipcMain.handle('demucs:separate', async (event, options: { inputFilePath: string; model: string; device: string }) => {
+  const probe = await probeDemucs()
+  return await runDemucs(
+    { ...options, pythonPath: probe.pythonPath ?? undefined },
+    (percent, stage) => {
+      event.sender.send('demucs:progress', { percent, stage })
+    }
+  )
+})
+
+ipcMain.handle('demucs:cancel', async () => {
+  cancelDemucs()
+})
+
+ipcMain.handle('demucs:install', async (event) => {
+  const probe = await probeDemucs()
+  return await installDemucs(probe.pythonPath ?? undefined, (line) => {
+    event.sender.send('demucs:install-log', line)
+  })
 })

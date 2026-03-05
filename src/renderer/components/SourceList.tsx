@@ -9,6 +9,8 @@ import { MAX_SOURCES } from '../types'
 import type { SourceType } from '../types'
 import { useTransportStore } from '../stores/useTransportStore'
 import { useToast } from './ToastContext'
+import { useDemucsSeparate } from '../hooks/useDemucsSeparate'
+import { DemucsSetupModal } from './DemucsSetupModal'
 
 /**
  * Component that displays and manages audio sources in the spatial audio editor.
@@ -24,6 +26,11 @@ export function SourceList() {
   const setSourceMuted = useAppStore((s) => s.setSourceMuted)
   const setSourceSoloed = useAppStore((s) => s.setSourceSoloed)
   const setSourceLabel = useAppStore((s) => s.setSourceLabel)
+  const demucsProbe = useAppStore((s) => s.demucsProbe)
+  const demucsStatus = useAppStore((s) => s.demucsStatus)
+  const demucsProgress = useAppStore((s) => s.demucsProgress)
+  const { separate } = useDemucsSeparate()
+  const [showSetupModal, setShowSetupModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
@@ -70,6 +77,9 @@ export function SourceList() {
         if (result) {
           await audioEngine.loadFile(newest.id, result.buffer)
           useAppStore.getState().setSourceAudioFileName(newest.id, result.name)
+          if (result.filePath) {
+            useAppStore.getState().setSourceAudioFilePath(newest.id, result.filePath)
+          }
           useTransportStore.getState().refreshDuration()
         }
       } catch {
@@ -254,7 +264,7 @@ export function SourceList() {
             >
               S
             </button>
-            {sources.length > 1 && (
+            {sources.length > 0 && (
               <button
                 className="btn-icon"
                 onClick={(e) => {
@@ -381,6 +391,65 @@ export function SourceList() {
           + MIDI
         </button>
       </div>
+
+      {selectedSourceId && (() => {
+        const sel = sources.find((s) => s.id === selectedSourceId)
+        if (!sel || sel.sourceType !== 'file' || !sel.audioFileName) return null
+        const isSeparating = demucsStatus === 'separating'
+        const slotsAvailable = MAX_SOURCES - sources.length >= 4
+
+        return (
+          <button
+            className="btn"
+            onClick={() => {
+              if (!demucsProbe?.available) {
+                setShowSetupModal(true)
+              } else {
+                separate(selectedSourceId)
+              }
+            }}
+            disabled={isSeparating || (!demucsProbe?.available ? false : !slotsAvailable)}
+            title={
+              !demucsProbe?.available ? 'Setup required -- click to configure'
+              : !slotsAvailable ? 'Not enough source slots (need 4 free)'
+              : 'Split into drums, bass, vocals, other and spatialise'
+            }
+            style={{
+              fontSize: 11,
+              padding: '6px 10px',
+              textAlign: 'center',
+              color: isSeparating ? 'var(--accent-teal)' : 'var(--text-secondary)',
+              borderColor: demucsProbe?.available ? 'var(--accent-teal, #00cccc)' : 'var(--border-subtle)',
+            }}
+          >
+            {isSeparating
+              ? `Separating... ${demucsProgress}%`
+              : 'Spatialise Stems'}
+          </button>
+        )
+      })()}
+
+      {!demucsProbe?.available && selectedSourceId && (() => {
+        const sel = sources.find((s) => s.id === selectedSourceId)
+        if (!sel || sel.sourceType !== 'file' || !sel.audioFileName) return null
+        return (
+          <span
+            onClick={() => setShowSetupModal(true)}
+            style={{
+              fontSize: 10,
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              textAlign: 'center',
+            }}
+          >
+            Setup required
+          </span>
+        )
+      })()}
+
+      {showSetupModal && (
+        <DemucsSetupModal onClose={() => setShowSetupModal(false)} />
+      )}
     </div>
   )
 }

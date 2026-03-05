@@ -3,6 +3,7 @@ import { app, BrowserWindow, shell, protocol, net } from 'electron'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { is } from '@electron-toolkit/utils'
+import { cancelDemucs, cleanupStemDirs } from './demucs/runner'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -60,6 +61,11 @@ app.whenReady().then(() => {
       createWindow()
     }
   })
+})
+
+app.on('before-quit', () => {
+  cancelDemucs()
+  cleanupStemDirs().catch(() => {})
 })
 
 app.on('window-all-closed', () => {

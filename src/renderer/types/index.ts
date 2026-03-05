@@ -33,12 +33,13 @@ export interface SourceAnimation {
 export const SOURCE_COLORS = [
   '#ff6622', '#2288ff', '#22cc44', '#ff2266',
   '#ffcc00', '#aa44ff', '#00cccc', '#ff8844',
+  '#ff4444', '#ff8800', '#44aaff', '#88ff44',
 ] as const
 
 /**
  * Maximum number of audio sources supported in the editor
  */
-export const MAX_SOURCES = 8
+export const MAX_SOURCES = 12
 
 /**
  * Types of audio sources available in the editor
@@ -56,6 +57,7 @@ export interface AudioSource {
   volume: number
   color: string
   audioFileName: string | null
+  audioFilePath: string | null
   sineFrequency: number
   isMuted: boolean
   isSoloed: boolean
@@ -97,11 +99,13 @@ export interface AppState {
   sources: AudioSource[]
   selectedSourceId: SourceId | null
   addSource: (type: SourceType) => void
+  addSourceRaw: (source: AudioSource) => void
   removeSource: (id: SourceId) => void
   selectSource: (id: SourceId | null) => void
   setSourcePosition: (id: SourceId, position: SourcePosition) => void
   setSourceVolume: (id: SourceId, volume: number) => void
   setSourceAudioFileName: (id: SourceId, name: string | null) => void
+  setSourceAudioFilePath: (id: SourceId, path: string | null) => void
   setSourceSineFrequency: (id: SourceId, freq: number) => void
   setSourceMuted: (id: SourceId, muted: boolean) => void
   setSourceSoloed: (id: SourceId, soloed: boolean) => void
@@ -182,6 +186,16 @@ export interface AppState {
   setVideoScreenLocked: (locked: boolean) => void
   setVideoScreenVisible: (visible: boolean) => void
 
+  // Demucs
+  demucsProbe: DemucsProbeResult | null
+  demucsStatus: 'idle' | 'probing' | 'separating' | 'installing' | 'error'
+  demucsProgress: number
+  demucsError: string | null
+  setDemucsProbe: (probe: DemucsProbeResult | null) => void
+  setDemucsStatus: (status: AppState['demucsStatus']) => void
+  setDemucsProgress: (p: number) => void
+  setDemucsError: (e: string | null) => void
+
   // History (Undo/Redo)
   undoStack: HistoryState[]
   redoStack: HistoryState[]
@@ -208,6 +222,7 @@ export interface HistoryState {
 export interface AudioFileResult {
   buffer: ArrayBuffer
   name: string
+  filePath?: string
 }
 
 /**
@@ -262,6 +277,54 @@ export interface ProjectOpenResult {
 }
 
 /**
+ * Demucs stem separation probe result
+ */
+export interface DemucsProbeResult {
+  available: boolean
+  gpuAvailable: boolean
+  gpuType: 'cuda' | 'mps' | 'cpu'
+  pythonPath: string | null
+  version: string | null
+}
+
+/**
+ * Options for running Demucs stem separation
+ */
+export interface DemucsOptions {
+  inputFilePath: string
+  model: 'htdemucs' | 'htdemucs_ft' | 'htdemucs_6s'
+  device: 'cuda' | 'mps' | 'cpu'
+}
+
+/**
+ * Individual stem result from Demucs separation
+ */
+export interface DemucsStemResult {
+  name: string
+  buffer: ArrayBuffer
+  defaultPosition: SourcePosition
+  color: string
+}
+
+/**
+ * Full result of a Demucs separation run
+ */
+export interface DemucsResult {
+  success: boolean
+  stems: DemucsStemResult[]
+  error?: string
+  durationMs: number
+}
+
+/**
+ * Progress update during Demucs separation
+ */
+export interface DemucsProgress {
+  percent: number
+  stage: string
+}
+
+/**
  * Electron API interface for communication between renderer and main processes
  */
 export interface ElectronAPI {
@@ -288,6 +351,12 @@ export interface ElectronAPI {
   importPlugin: () => Promise<import('../plugins/types').PluginManifest | null>
   removePlugin: (pluginId: string) => Promise<boolean>
   openPluginsFolder: () => Promise<void>
+  demucsProbe: () => Promise<DemucsProbeResult>
+  demucsSeparate: (options: DemucsOptions) => Promise<DemucsResult>
+  demucsCancel: () => Promise<void>
+  demucsInstall: () => Promise<{ success: boolean; error?: string }>
+  onDemucsProgress: (cb: (data: DemucsProgress) => void) => () => void
+  onDemucsInstallLog: (cb: (line: string) => void) => () => void
 }
 
 declare global {

@@ -35,5 +35,20 @@ if (process.contextIsolated) {
     importPlugin: () => ipcRenderer.invoke('plugins:import'),
     removePlugin: (pluginId: string) => ipcRenderer.invoke('plugins:remove', pluginId) as Promise<boolean>,
     openPluginsFolder: () => ipcRenderer.invoke('plugins:open-folder') as Promise<void>,
+    demucsProbe: () => ipcRenderer.invoke('demucs:probe'),
+    demucsSeparate: (options: { inputFilePath: string; model: string; device: string }) =>
+      ipcRenderer.invoke('demucs:separate', options),
+    demucsCancel: () => ipcRenderer.invoke('demucs:cancel'),
+    demucsInstall: () => ipcRenderer.invoke('demucs:install'),
+    onDemucsProgress: (cb: (data: { percent: number; stage: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: { percent: number; stage: string }) => cb(data)
+      ipcRenderer.on('demucs:progress', handler)
+      return () => { ipcRenderer.removeListener('demucs:progress', handler) }
+    },
+    onDemucsInstallLog: (cb: (line: string) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, line: string) => cb(line)
+      ipcRenderer.on('demucs:install-log', handler)
+      return () => { ipcRenderer.removeListener('demucs:install-log', handler) }
+    },
   })
 }
