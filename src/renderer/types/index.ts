@@ -282,6 +282,9 @@ export interface ElectronAPI {
   scanPlugins: () => Promise<import('../plugins/types').PluginManifest[]>
   readPluginScript: (pluginId: string) => Promise<string | null>
   getPluginsDir: () => Promise<string>
+  importPlugin: () => Promise<import('../plugins/types').PluginManifest | null>
+  removePlugin: (pluginId: string) => Promise<boolean>
+  openPluginsFolder: () => Promise<void>
 }
 
 declare global {

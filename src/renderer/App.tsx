@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Viewport } from './components/Viewport'
 import { ControlPanel } from './components/ControlPanel'
 import { TimelinePanel } from './components/TimelinePanel'
@@ -8,10 +8,22 @@ import { audioEngine } from './audio/WebAudioEngine'
 import { useProjectIO } from './hooks/useProjectIO'
 import { VideoPanel } from './components/VideoPanel'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { usePluginStore } from './plugins/usePluginStore'
 
 export default function App() {
   const { saveProject, openProject } = useProjectIO()
   const { showToast } = useToast()
+
+  // Scan plugins at startup so they're available for project deserialization
+  useEffect(() => {
+    if (!window.api?.scanPlugins) return
+    const store = usePluginStore.getState()
+    store.setIsScanning(true)
+    window.api.scanPlugins()
+      .then((manifests) => store.setAvailablePlugins(manifests))
+      .catch(() => {})
+      .finally(() => store.setIsScanning(false))
+  }, [])
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts(saveProject, openProject)

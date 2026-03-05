@@ -1,6 +1,6 @@
-import { app } from 'electron'
-import { readdir, readFile, stat, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { app, shell } from 'electron'
+import { readdir, readFile, stat, mkdir, cp, rm } from 'fs/promises'
+import { join, basename } from 'path'
 
 interface PluginParameterDef {
   id: string
@@ -82,6 +82,79 @@ export async function scanPlugins(): Promise<PluginManifest[]> {
   }
 
   return manifests
+}
+
+/** Imports a plugin directory into the plugins folder */
+export async function importPlugin(sourcePath: string): Promise<PluginManifest | null> {
+  await ensurePluginsDir()
+  const dir = getPluginsDir()
+
+  // Validate source has a plugin.json
+  const manifestPath = join(sourcePath, 'plugin.json')
+  let raw: string
+  try {
+    raw = await readFile(manifestPath, 'utf-8')
+  } catch {
+    return null
+  }
+
+  const parsed = JSON.parse(raw) as Record<string, unknown>
+  if (!parsed.id || !parsed.name || !parsed.type || !parsed.main) return null
+
+  const destName = basename(sourcePath)
+  const destPath = join(dir, destName)
+
+  await cp(sourcePath, destPath, { recursive: true })
+
+  return {
+    id: parsed.id as string,
+    name: parsed.name as string,
+    version: (parsed.version as string) ?? '0.0.0',
+    description: (parsed.description as string) ?? '',
+    author: (parsed.author as string) ?? '',
+    type: parsed.type as PluginManifest['type'],
+    main: parsed.main as string,
+    parameters: Array.isArray(parsed.parameters)
+      ? (parsed.parameters as PluginParameterDef[])
+      : [],
+  }
+}
+
+/** Removes a plugin directory from the plugins folder */
+export async function removePlugin(pluginId: string): Promise<boolean> {
+  await ensurePluginsDir()
+  const dir = getPluginsDir()
+
+  let entries: string[]
+  try {
+    entries = await readdir(dir)
+  } catch {
+    return false
+  }
+
+  for (const entry of entries) {
+    const pluginDir = join(dir, entry)
+    try {
+      const manifestPath = join(pluginDir, 'plugin.json')
+      const raw = await readFile(manifestPath, 'utf-8')
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      if (parsed.id === pluginId) {
+        await rm(pluginDir, { recursive: true, force: true })
+        return true
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return false
+}
+
+/** Opens the plugins directory in the OS file explorer */
+export async function openPluginsFolder(): Promise<void> {
+  await ensurePluginsDir()
+  const dir = getPluginsDir()
+  await shell.openPath(dir)
 }
 
 /** Reads the main JS file for a given plugin ID */

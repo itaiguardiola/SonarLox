@@ -2,7 +2,7 @@ import { ipcMain, dialog } from 'electron'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { dirname, resolve } from 'path'
 import { saveProject, openProject } from './projectIO'
-import { scanPlugins, readPluginScript, getPluginsDir } from './pluginScanner'
+import { scanPlugins, readPluginScript, getPluginsDir, importPlugin, removePlugin, openPluginsFolder } from './pluginScanner'
 
 ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer, defaultPath?: string) => {
   const result = await dialog.showSaveDialog({
@@ -148,6 +148,23 @@ ipcMain.handle('plugins:read-script', async (_event, pluginId: string) => {
 
 ipcMain.handle('plugins:get-dir', async () => {
   return getPluginsDir()
+})
+
+ipcMain.handle('plugins:import', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+    title: 'Select Plugin Folder',
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  return await importPlugin(result.filePaths[0])
+})
+
+ipcMain.handle('plugins:remove', async (_event, pluginId: string) => {
+  return await removePlugin(pluginId)
+})
+
+ipcMain.handle('plugins:open-folder', async () => {
+  await openPluginsFolder()
 })
 
 ipcMain.handle('open-video-file', async () => {

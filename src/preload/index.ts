@@ -32,5 +32,8 @@ if (process.contextIsolated) {
     scanPlugins: () => ipcRenderer.invoke('plugins:scan'),
     readPluginScript: (pluginId: string) => ipcRenderer.invoke('plugins:read-script', pluginId) as Promise<string | null>,
     getPluginsDir: () => ipcRenderer.invoke('plugins:get-dir') as Promise<string>,
+    importPlugin: () => ipcRenderer.invoke('plugins:import'),
+    removePlugin: (pluginId: string) => ipcRenderer.invoke('plugins:remove', pluginId) as Promise<boolean>,
+    openPluginsFolder: () => ipcRenderer.invoke('plugins:open-folder') as Promise<void>,
   })
 }

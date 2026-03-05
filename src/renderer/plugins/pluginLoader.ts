@@ -9,6 +9,7 @@ import type {
 } from './types'
 import { audioEngine } from '../audio/WebAudioEngine'
 import { useTransportStore } from '../stores/useTransportStore'
+import { usePluginStore } from './usePluginStore'
 
 class EventEmitter {
   private listeners: Map<string, Set<Function>> = new Map()
@@ -112,7 +113,7 @@ export async function loadPlugin(manifest: PluginManifest): Promise<PluginInstan
     manifest,
     plugin,
     target: 'master',
-    slot: 0,
+    slot: usePluginStore.getState().getNextSlot('master'),
     enabled: true,
     parameters,
   }

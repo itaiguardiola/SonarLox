@@ -6,15 +6,19 @@ interface PluginStoreState {
   availablePlugins: PluginManifest[]
   activePlugins: Map<string, PluginInstance>
   isScanning: boolean
-  
+
   setAvailablePlugins: (plugins: PluginManifest[]) => void
   setIsScanning: (isScanning: boolean) => void
+  scanPlugins: () => Promise<void>
   activatePlugin: (instance: PluginInstance) => void
   deactivatePlugin: (pluginId: string) => void
   togglePlugin: (pluginId: string) => void
   setPluginParameter: (pluginId: string, paramId: string, value: PluginParameterValue) => void
   setPluginTarget: (pluginId: string, target: SourceId | 'master') => void
-  
+  setPluginSlot: (pluginId: string, slot: number) => void
+  swapPluginSlots: (pluginIdA: string, pluginIdB: string) => void
+  getNextSlot: (target: SourceId | 'master') => number
+
   getEffectsForSource: (sourceId: SourceId) => PluginInstance[]
   getMasterEffects: () => PluginInstance[]
   getExporterPlugins: () => PluginInstance[]
@@ -27,6 +31,19 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
 
   setAvailablePlugins: (availablePlugins) => set({ availablePlugins }),
   setIsScanning: (isScanning) => set({ isScanning }),
+
+  scanPlugins: async () => {
+    if (!window.api?.scanPlugins) return
+    set({ isScanning: true })
+    try {
+      const manifests = await window.api.scanPlugins()
+      set({ availablePlugins: manifests })
+    } catch {
+      // ignore
+    } finally {
+      set({ isScanning: false })
+    }
+  },
 
   activatePlugin: (instance) => {
     set((state) => {
@@ -72,6 +89,38 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
       instance.target = target
       set({ activePlugins: new Map(activePlugins) })
     }
+  },
+
+  setPluginSlot: (pluginId, slot) => {
+    const { activePlugins } = get()
+    const instance = activePlugins.get(pluginId)
+    if (instance) {
+      instance.slot = slot
+      set({ activePlugins: new Map(activePlugins) })
+    }
+  },
+
+  swapPluginSlots: (pluginIdA, pluginIdB) => {
+    const { activePlugins } = get()
+    const a = activePlugins.get(pluginIdA)
+    const b = activePlugins.get(pluginIdB)
+    if (a && b) {
+      const tmp = a.slot
+      a.slot = b.slot
+      b.slot = tmp
+      set({ activePlugins: new Map(activePlugins) })
+    }
+  },
+
+  getNextSlot: (target) => {
+    const { activePlugins } = get()
+    let maxSlot = -1
+    for (const instance of activePlugins.values()) {
+      if (instance.target === target && instance.manifest.type === 'audio-effect') {
+        if (instance.slot > maxSlot) maxSlot = instance.slot
+      }
+    }
+    return maxSlot + 1
   },
 
   getEffectsForSource: (sourceId) => {
