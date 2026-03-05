@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { audioEngine } from '../audio/WebAudioEngine'
 import { useAppStore } from './useAppStore'
 
+/**
+ * State interface for the transport controls in the spatial audio editor.
+ * Manages playback state, playhead position, and looping behavior.
+ */
 interface TransportStoreState {
   isPlaying: boolean
   isPaused: boolean
@@ -17,8 +21,15 @@ interface TransportStoreState {
   updatePlayhead: () => void
 }
 
+/**
+ * Animation frame ID used to manage the playhead update loop.
+ */
 let animFrameId: number | null = null
 
+/**
+ * Starts a continuous loop to update the playhead position using requestAnimationFrame.
+ * This is used during playback to keep the playhead moving in sync with audio.
+ */
 function startPlayheadLoop(update: () => void) {
   const tick = () => {
     update()
@@ -27,6 +38,10 @@ function startPlayheadLoop(update: () => void) {
   animFrameId = requestAnimationFrame(tick)
 }
 
+/**
+ * Stops the playhead update loop by canceling the animation frame.
+ * Called when playback is paused or stopped.
+ */
 function stopPlayheadLoop() {
   if (animFrameId !== null) {
     cancelAnimationFrame(animFrameId)
@@ -34,6 +49,10 @@ function stopPlayheadLoop() {
   }
 }
 
+/**
+ * Zustand store for managing transport controls (play, pause, stop, seek, loop).
+ * Integrates with the Web Audio Engine to control playback and updates the UI playhead.
+ */
 export const useTransportStore = create<TransportStoreState>((set, get) => ({
   isPlaying: false,
   isPaused: false,
@@ -64,7 +83,7 @@ export const useTransportStore = create<TransportStoreState>((set, get) => ({
   },
 
   seek: (_position: number) => {
-    // Seeking requires stopping and restarting with offset — simplified for now
+    // Seeking requires stopping and restarting with offset – simplified for now
     // Full seek support would require setting pauseOffset on all channels
     // For now, just update the visual playhead
     set({ playheadPosition: _position })
