@@ -158,6 +158,28 @@ export interface AppState {
   cameraCommand: CameraCommand
   setCameraCommand: (cmd: CameraCommand) => void
 
+  // Video
+  videoFilePath: string | null
+  videoFileName: string | null
+  videoOffset: number
+  videoFrameRate: number
+  isVideoVisible: boolean
+  videoOpacity: number
+  videoScreenPosition: SourcePosition
+  videoScreenScale: number
+  videoScreenLocked: boolean
+  videoScreenVisible: boolean
+  setVideoFile: (path: string, name: string) => void
+  clearVideo: () => void
+  setVideoOffset: (offset: number) => void
+  setVideoFrameRate: (rate: number) => void
+  setIsVideoVisible: (visible: boolean) => void
+  setVideoOpacity: (opacity: number) => void
+  setVideoScreenPosition: (pos: SourcePosition) => void
+  setVideoScreenScale: (scale: number) => void
+  setVideoScreenLocked: (locked: boolean) => void
+  setVideoScreenVisible: (visible: boolean) => void
+
   // History (Undo/Redo)
   undoStack: HistoryState[]
   redoStack: HistoryState[]
@@ -174,6 +196,7 @@ export interface HistoryState {
   sources: AudioSource[]
   animations: Record<SourceId, SourceAnimation>
   pluginState: import('../plugins/types').SerializedPluginState[]
+  roomSize: [number, number]
 }
 
 /**
@@ -255,6 +278,7 @@ export interface ElectronAPI {
     defaultId?: number
     cancelId?: number
   }) => Promise<number>
+  openVideoFile: () => Promise<{ filePath: string; name: string } | null>
   scanPlugins: () => Promise<import('../plugins/types').PluginManifest[]>
   readPluginScript: (pluginId: string) => Promise<string | null>
   getPluginsDir: () => Promise<string>

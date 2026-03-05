@@ -5,6 +5,7 @@ import { SourceList } from './SourceList'
 import { SourcePropertiesSection } from './sections/SourcePropertiesSection'
 import { TransportSection } from './sections/TransportSection'
 import { EnvironmentSection } from './sections/EnvironmentSection'
+import { VideoSection } from './sections/VideoSection'
 import { PluginPanel } from './PluginPanel'
 import { CameraSection } from './sections/CameraSection'
 
@@ -48,6 +49,9 @@ export function ControlPanel() {
       <div className="divider" />
 
       <EnvironmentSection />
+      <div className="divider" />
+
+      <VideoSection />
       <div className="divider" />
 
       <PluginPanel />

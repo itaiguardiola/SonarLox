@@ -1,5 +1,5 @@
 // Setup file for tests
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
 // Mock window.api if it doesn't exist
 if (typeof window !== 'undefined' && !window.api) {

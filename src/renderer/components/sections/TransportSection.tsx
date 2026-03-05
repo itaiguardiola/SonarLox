@@ -16,7 +16,11 @@ export function TransportSection() {
   const recordQuantize = useAppStore((s) => s.recordQuantize)
   const setRecordQuantize = useAppStore((s) => s.setRecordQuantize)
 
-  const hasAnyAudio = audioEngine.hasAnyBuffer()
+  // Subscribe to sources so we re-render when audio files are loaded
+  const sources = useAppStore((s) => s.sources)
+  const hasVideo = useAppStore((s) => s.videoFilePath !== null)
+  const hasAnyAudio = sources.some((s) => s.audioFileName !== null) && audioEngine.hasAnyBuffer()
+  const canPlay = hasAnyAudio || hasVideo
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -25,7 +29,7 @@ export function TransportSection() {
         <button
           className={`btn btn--transport ${isPlaying ? '' : 'btn--accent'}`}
           onClick={() => play()}
-          disabled={!hasAnyAudio || isPlaying}
+          disabled={!canPlay || isPlaying}
         >
           Play
         </button>

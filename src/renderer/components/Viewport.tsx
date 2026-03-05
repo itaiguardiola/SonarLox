@@ -10,6 +10,7 @@ import { MotionPath } from './MotionPath'
 import { AudioVisualizer } from './AudioVisualizer'
 import { PluginVisualizers } from './PluginVisualizers'
 import { CameraManager } from './CameraManager'
+import { VideoScreenBridge } from './VideoScreenBridge'
 import { useAppStore } from '../stores/useAppStore'
 
 /**
@@ -43,6 +44,7 @@ export function Viewport() {
         <AudioVisualizer key={id} sourceId={id} />
       ))}
       <PluginVisualizers />
+      <VideoScreenBridge />
     </Canvas>
   )
 }

@@ -1,145 +1,121 @@
-import { describe, it, expect, vi } from 'vitest';
-import { audioEngine } from '../audio/WebAudioEngine';
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock the Web Audio API
+// Mock SourceChannel before importing WebAudioEngine
+vi.mock('../audio/SourceChannel', () => {
+  return {
+    SourceChannel: vi.fn().mockImplementation(() => ({
+      dispose: vi.fn(),
+      stop: vi.fn(),
+      play: vi.fn(),
+      pause: vi.fn(),
+      isPaused: vi.fn(() => false),
+      playTestTone: vi.fn(),
+      setPosition: vi.fn(),
+      setVolume: vi.fn(),
+      setLooping: vi.fn(),
+      setSineFrequency: vi.fn(),
+      setPlayheadPosition: vi.fn(),
+      audioBuffer: null,
+      gainNode: { gain: { value: 1 } },
+      pannerNode: {
+        positionX: { value: 0 },
+        positionY: { value: 0 },
+        positionZ: { value: 0 },
+      },
+      analyserNode: {
+        fftSize: 2048,
+        frequencyBinCount: 1024,
+        getFloatFrequencyData: vi.fn(),
+        getFloatTimeDomainData: vi.fn(),
+      },
+    })),
+  }
+})
+
+// Mock AudioContext
+const mockGainNode = {
+  gain: { value: 1 },
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+}
+const mockAnalyserNode = {
+  fftSize: 2048,
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+}
 const mockAudioContext = {
-  createGain: vi.fn(),
-  createPanner: vi.fn(),
-  createAnalyser: vi.fn(),
-  createBufferSource: vi.fn(),
-  createMediaStreamDestination: vi.fn(),
-  createMediaStreamSource: vi.fn(),
-  createChannelMerger: vi.fn(),
-  createBiquadFilter: vi.fn(),
-  suspend: vi.fn(),
+  createGain: vi.fn(() => mockGainNode),
+  createAnalyser: vi.fn(() => mockAnalyserNode),
+  destination: {},
+  state: 'running',
   resume: vi.fn(),
   close: vi.fn(),
-};
+  currentTime: 0,
+  listener: { positionY: { value: 0 } },
+  decodeAudioData: vi.fn(),
+}
 
-const mockGainNode = {
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-  gain: {
-    value: 0,
-    setValueAtTime: vi.fn(),
-    linearRampToValueAtTime: vi.fn(),
-  },
-};
+vi.stubGlobal('AudioContext', vi.fn(() => mockAudioContext))
 
-const mockPannerNode = {
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-  positionX: { value: 0 },
-  positionY: { value: 0 },
-  positionZ: { value: 0 },
-  orientationX: { value: 0 },
-  orientationY: { value: 0 },
-  orientationZ: { value: 0 },
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-};
-
-const mockAnalyserNode = {
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-  getByteTimeDomainData: vi.fn(),
-  getByteFrequencyData: vi.fn(),
-};
-
-const mockBufferSourceNode = {
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-  start: vi.fn(),
-  stop: vi.fn(),
-  loop: false,
-};
-
-const mockMediaStreamDestination = {
-  connect: vi.fn(),
-};
-
-const mockChannelMergerNode = {
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-};
-
-const mockBiquadFilterNode = {
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-  type: 'lowpass',
-  frequency: { value: 1000 },
-  Q: { value: 1 },
-};
-
-// Mock the global audio context
-Object.defineProperty(window, 'AudioContext', {
-  writable: true,
-  value: vi.fn(() => mockAudioContext),
-});
-
-Object.defineProperty(window, 'webkitAudioContext', {
-  writable: true,
-  value: vi.fn(() => mockAudioContext),
-});
+// Import after mocks are in place
+const { audioEngine } = await import('../audio/WebAudioEngine')
 
 describe('WebAudioEngine', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(async () => {
+    // Reset engine internals
+    audioEngine.dispose()
+    vi.clearAllMocks()
+    mockAudioContext.state = 'running'
+  })
 
-    // Reset the audio engine
-    (audioEngine as any).context = null;
-    (audioEngine as any).masterGain = null;
-    (audioEngine as any).masterAnalyser = null;
-    (audioEngine as any).isInitialized = false;
-  });
+  it('initializes the audio context on init()', async () => {
+    await audioEngine.init()
+    expect(AudioContext).toHaveBeenCalled()
+  })
 
-  it('initializes the audio context', () => {
-    expect(audioEngine.isInitialized).toBe(false);
-    // This would normally initialize the context, but we're mocking it
-  });
+  it('creates and removes channels', async () => {
+    await audioEngine.init()
+    audioEngine.createChannel('src-1')
+    expect(audioEngine.getChannelIds()).toContain('src-1')
 
-  it('creates a gain node', () => {
-    const gainNode = audioEngine.createGain();
-    expect(gainNode).toBeDefined();
-  });
+    audioEngine.removeChannel('src-1')
+    expect(audioEngine.getChannelIds()).not.toContain('src-1')
+  })
 
-  it('creates a panner node', () => {
-    const pannerNode = audioEngine.createPanner();
-    expect(pannerNode).toBeDefined();
-  });
+  it('sets master volume', async () => {
+    await audioEngine.init()
+    audioEngine.setMasterVolume(0.5)
+    expect(mockGainNode.gain.value).toBe(0.5)
+  })
 
-  it('creates an analyser node', () => {
-    const analyserNode = audioEngine.createAnalyser();
-    expect(analyserNode).toBeDefined();
-  });
+  it('sets listener Y position', async () => {
+    await audioEngine.init()
+    audioEngine.setListenerY(2)
+    expect(mockAudioContext.listener.positionY.value).toBe(2)
+  })
 
-  it('creates a buffer source node', () => {
-    const bufferSourceNode = audioEngine.createBufferSource();
-    expect(bufferSourceNode).toBeDefined();
-  });
+  it('tracks looping state', () => {
+    expect(audioEngine.getIsLooping()).toBe(true)
+    audioEngine.setLooping(false)
+    expect(audioEngine.getIsLooping()).toBe(false)
+  })
 
-  it('creates a media stream destination', () => {
-    const mediaStreamDestination = audioEngine.createMediaStreamDestination();
-    expect(mediaStreamDestination).toBeDefined();
-  });
+  it('getDuration returns 0 with no buffers', () => {
+    expect(audioEngine.getDuration()).toBe(0)
+  })
 
-  it('connects nodes properly', () => {
-    const source = audioEngine.createGain();
-    const destination = audioEngine.createGain();
+  it('getAnalyser returns null for unknown source', () => {
+    expect(audioEngine.getAnalyser('nonexistent')).toBeNull()
+  })
 
-    audioEngine.connect(source, destination);
-    expect(source.connect).toHaveBeenCalledWith(destination);
-  });
+  it('getAudioBuffer returns null for unknown source', () => {
+    expect(audioEngine.getAudioBuffer('nonexistent')).toBeNull()
+  })
 
-  it('disconnects nodes properly', () => {
-    const source = audioEngine.createGain();
-
-    audioEngine.disconnect(source);
-    expect(source.disconnect).toHaveBeenCalled();
-  });
-
-  it('handles audio context state changes', () => {
-    expect(audioEngine.isInitialized).toBe(false);
-    // The engine would normally initialize here
-  });
-});
+  it('dispose cleans up all resources', async () => {
+    await audioEngine.init()
+    audioEngine.createChannel('src-1')
+    audioEngine.dispose()
+    expect(audioEngine.getChannelIds()).toHaveLength(0)
+  })
+})

@@ -1,7 +1,21 @@
 import './ipc'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, protocol, net } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { is } from '@electron-toolkit/utils'
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'sonarlox-video',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: true,
+    }
+  }
+])
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -30,6 +44,15 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  protocol.handle('sonarlox-video', (request) => {
+    const url = new URL(request.url)
+    const filePath = url.searchParams.get('path')
+    if (!filePath) {
+      return new Response('Missing path parameter', { status: 400 })
+    }
+    return net.fetch(pathToFileURL(filePath).toString())
+  })
+
   createWindow()
 
   app.on('activate', () => {

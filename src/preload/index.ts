@@ -5,6 +5,7 @@ if (process.contextIsolated) {
   contextBridge.exposeInMainWorld('electron', electronAPI)
   contextBridge.exposeInMainWorld('api', {
     openAudioFile: () => ipcRenderer.invoke('open-audio-file'),
+    openVideoFile: () => ipcRenderer.invoke('open-video-file'),
     openMidiFile: () => ipcRenderer.invoke('open-midi-file'),
     openSoundFontFile: () => ipcRenderer.invoke('open-soundfont-file'),
     saveWavFile: (buffer: ArrayBuffer, defaultPath?: string) =>

@@ -7,6 +7,7 @@ import { isLoaded as isSoundFontLoaded, renderMidiTrackWithSoundFont } from '../
 import { setTrack, deleteTrack } from '../audio/midiTrackCache'
 import { MAX_SOURCES } from '../types'
 import type { SourceType } from '../types'
+import { useTransportStore } from '../stores/useTransportStore'
 import { useToast } from './Toast'
 
 /**
@@ -62,6 +63,19 @@ export function SourceList() {
     const newSources = useAppStore.getState().sources
     const newest = newSources[newSources.length - 1]
     audioEngine.createChannel(newest.id)
+
+    if (type === 'file' && window.api) {
+      try {
+        const result = await window.api.openAudioFile()
+        if (result) {
+          await audioEngine.loadFile(newest.id, result.buffer)
+          useAppStore.getState().setSourceAudioFileName(newest.id, result.name)
+          useTransportStore.setState({ duration: audioEngine.getDuration() })
+        }
+      } catch {
+        showToast('Failed to load audio file', 'error')
+      }
+    }
   }
 
   /**

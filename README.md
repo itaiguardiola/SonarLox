@@ -19,6 +19,8 @@ SonarLox is a desktop application that provides a 3D spatial audio editing envir
 - Audio project management and export capabilities
 - Plugin architecture for audio effects
 - Timeline-based editing interface
+- Undo/Redo functionality
+- Drag & Drop support
 
 ## Architecture
 
@@ -40,8 +42,27 @@ src/
 │   ├── audio/      # Audio processing classes
 │   ├── stores/     # Zustand stores
 │   ├── plugins/    # Plugin system
-│   └── types/      # TypeScript types
+│   ├── hooks/      # Custom React hooks
+│   ├── types/      # TypeScript types
+│   └── __tests__/  # Test files
 ```
+
+## Recent Updates and Phases
+
+### Phase 15/16 - Undo/Redo, Drag & Drop, and Major Refactoring
+- Implemented Undo/Redo functionality for audio editing operations
+- Added Drag & Drop support for audio sources
+- Major refactoring of the application architecture
+- Improved plugin system with SourceChannel integration
+
+### Phase 17 - SourceChannel and PluginLoader Updates
+- Enhanced SourceChannel implementation for better audio handling
+- Updated plugin loader functionality
+- Additional refactoring for improved maintainability
+
+### Phase 18 - Video Synchronization
+- Added video synchronization capabilities
+- Enhanced timeline-based editing interface
 
 ## Installation
 
@@ -59,6 +80,8 @@ src/
 - `preview` - Preview the built application
 - `lint` - Run ESLint
 - `typecheck` - Run TypeScript type checking
+- `test` - Run tests
+- `test:watch` - Run tests in watch mode
 
 ### Documentation Scripts
 
@@ -83,6 +106,8 @@ Recent JSDoc documentation has been added to several key components:
 - `Listener.tsx` - Listener positioning component
 - `SoundSource.tsx` - Audio source positioning component
 - `Room.tsx` - 3D room environment component
+- `SourceChannel.ts` - Audio source channel management
+- `WebAudioEngine.ts` - Core Web Audio API engine
 
 ## License
 

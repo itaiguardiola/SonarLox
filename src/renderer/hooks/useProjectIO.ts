@@ -12,6 +12,7 @@ import {
   serializePluginState,
   deserializePluginState,
 } from '../audio/projectSerializer'
+import { encodeWav } from '../audio/encodeWav'
 import { usePluginStore } from '../plugins/usePluginStore'
 import { loadPlugin, unloadPlugin } from '../plugins/pluginLoader'
 import { rebuildAllEffectChains } from '../plugins/effectChain'
@@ -35,7 +36,18 @@ export function useProjectIO() {
     const pluginState = usePluginStore.getState().activePlugins
     stateObj.plugins = serializePluginState(pluginState)
     const stateJson = JSON.stringify(stateObj, null, 2)
-    const audioFiles = serializeAudioSources(appState.sources)
+    const audioSourceMap = serializeAudioSources(appState.sources)
+    const audioFiles: Array<{ name: string; wavBuffer: ArrayBuffer; meta: string }> = []
+    for (const entry of audioSourceMap) {
+      const audioBuf = audioEngine.getAudioBuffer(entry.id)
+      if (!audioBuf) continue
+      const source = appState.sources.find((s) => s.id === entry.id)
+      audioFiles.push({
+        name: entry.name,
+        wavBuffer: encodeWav(audioBuf),
+        meta: JSON.stringify({ originalFileName: source?.audioFileName ?? entry.name }),
+      })
+    }
     const duration = audioEngine.getDuration()
     const sampleRate = 44100
 
@@ -46,6 +58,7 @@ export function useProjectIO() {
       sampleRate,
       undefined,
       appState.animations,
+      appState.videoFilePath,
     )
     const manifestJson = JSON.stringify(manifest, null, 2)
     const timelineJson = serializeTimeline(appState.animations)
@@ -134,6 +147,16 @@ export function useProjectIO() {
       animations,
       isRecordingKeyframes: false,
       isDirty: false,
+      videoFilePath: null,
+      videoFileName: deserialized.video.fileName,
+      videoOffset: deserialized.video.offset,
+      videoFrameRate: deserialized.video.frameRate,
+      videoOpacity: deserialized.video.opacity,
+      isVideoVisible: deserialized.video.visible,
+      videoScreenPosition: deserialized.video.screenPosition,
+      videoScreenScale: deserialized.video.screenScale,
+      videoScreenLocked: deserialized.video.screenLocked,
+      videoScreenVisible: deserialized.video.screenVisible,
     })
 
     audioEngine.setLooping(deserialized.isLooping)
@@ -214,6 +237,16 @@ export function useProjectIO() {
       soundFontName: null,
       animations: {},
       isRecordingKeyframes: false,
+      videoFilePath: null,
+      videoFileName: null,
+      videoOffset: 0,
+      videoFrameRate: 24,
+      videoOpacity: 1.0,
+      isVideoVisible: true,
+      videoScreenPosition: [0, 3, -4],
+      videoScreenScale: 3,
+      videoScreenLocked: false,
+      videoScreenVisible: true,
     })
 
     audioEngine.setLooping(true)

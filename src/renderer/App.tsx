@@ -6,6 +6,7 @@ import { ToastProvider, useToast } from './components/Toast'
 import { useAppStore } from './stores/useAppStore'
 import { audioEngine } from './audio/WebAudioEngine'
 import { useProjectIO } from './hooks/useProjectIO'
+import { VideoPanel } from './components/VideoPanel'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
 export default function App() {
@@ -74,6 +75,7 @@ export default function App() {
           <div style={{ flex: 1, background: '#08090d', minHeight: 0 }}>
             <Viewport />
           </div>
+          <VideoPanel />
           <TimelinePanel />
         </div>
 

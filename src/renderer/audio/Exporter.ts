@@ -19,7 +19,7 @@ function schedulePositionAutomation(
   if (!anim || anim.keyframes.length === 0) return
 
   const samples = getAnimatedPositionsAtIntervals(
-    sourceId, animations, position, duration, SCHEDULE_INTERVAL_MS
+    sourceId, duration, animations, position, SCHEDULE_INTERVAL_MS / 1000
   )
   for (const s of samples) {
     pannerNode.positionX.setValueAtTime(s.position[0], s.time)
@@ -246,7 +246,7 @@ function schedule51GainAutomation(
   if (!anim || anim.keyframes.length === 0) return
 
   const samples = getAnimatedPositionsAtIntervals(
-    sourceId, animations, position, duration, SCHEDULE_INTERVAL_MS
+    sourceId, duration, animations, position, SCHEDULE_INTERVAL_MS / 1000
   )
   for (const s of samples) {
     const adjusted: [number, number, number] = [s.position[0], s.position[1] - listenerY, s.position[2]]

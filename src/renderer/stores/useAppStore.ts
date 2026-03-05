@@ -5,6 +5,7 @@ import { createAnimationSlice } from './slices/AnimationSlice'
 import { createHistorySlice } from './slices/HistorySlice'
 import { createProjectSlice } from './slices/ProjectSlice'
 import { createUiSlice } from './slices/UiSlice'
+import { createVideoSlice } from './slices/VideoSlice'
 
 /**
  * Main application store for SonarLox, decomposed into logical slices.
@@ -16,4 +17,5 @@ export const useAppStore = create<AppState>()((...a) => ({
   ...createHistorySlice(...a),
   ...createProjectSlice(...a),
   ...createUiSlice(...a),
+  ...createVideoSlice(...a),
 }))

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { audioEngine } from '../audio/WebAudioEngine'
+import type { ExportSource } from '../audio/Exporter'
 import {
   exportBinauralWav,
   exportMixedBinauralWav,
@@ -40,20 +41,30 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
       if (pluginInstance) {
         const plugin = pluginInstance.plugin as ExporterPlugin
         buffer = await plugin.export()
-        extension = 'bin' // or whatever the plugin suggests
+        extension = 'bin'
       } else {
-        // Built-in exporters
+        const appState = useAppStore.getState()
+        const exportSources: ExportSource[] = appState.sources
+          .filter((s) => {
+            if (s.isMuted) return false
+            const anySoloed = appState.sources.some((x) => x.isSoloed)
+            if (anySoloed && !s.isSoloed) return false
+            return audioEngine.getAudioBuffer(s.id) !== null
+          })
+          .map((s) => ({
+            audioBuffer: audioEngine.getAudioBuffer(s.id)!,
+            position: s.position,
+            volume: s.volume,
+            sourceId: s.id,
+          }))
+
         switch (mode) {
           case 'binaural-stems':
-            // Logic for multiple files (zip or folder) would go here
-            // For now, just mix
-            buffer = await exportMixedBinauralWav(audioEngine)
-            break
           case 'binaural-mix':
-            buffer = await exportMixedBinauralWav(audioEngine)
+            buffer = await exportMixedBinauralWav(exportSources, appState.listenerY, appState.animations)
             break
           case '5.1-surround':
-            buffer = await export51Wav(audioEngine)
+            buffer = await export51Wav(exportSources, appState.listenerY, appState.animations)
             break
         }
       }

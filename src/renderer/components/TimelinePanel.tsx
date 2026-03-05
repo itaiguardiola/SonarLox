@@ -1,44 +1,58 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { useTransportStore } from '../stores/useTransportStore'
 import { audioEngine } from '../audio/WebAudioEngine'
 import type { SourceId, EasingType } from '../types'
 
-/**
- * Height of the timeline panel in pixels
- */
-const TIMELINE_HEIGHT = 150
+/* ------------------------------------------------------------------ */
+/*  Constants                                                          */
+/* ------------------------------------------------------------------ */
 
-/**
- * Width of the header section in pixels
- */
-const HEADER_WIDTH = 120
+const MIN_HEIGHT = 120
+const DEFAULT_HEIGHT = 180
+const MAX_HEIGHT = 400
+const HEADER_WIDTH = 140
+const ROW_HEIGHT = 36
+const LANE_HEIGHT = 28
+const RULER_HEIGHT = 22
+const PLAYHEAD_COLOR = '#e84057'
+const PLAYHEAD_GLOW = 'rgba(232, 64, 87, 0.35)'
 
-/**
- * Height of each timeline row in pixels
- */
-const ROW_HEIGHT = 32
+/* ------------------------------------------------------------------ */
+/*  Time ruler tick helpers                                            */
+/* ------------------------------------------------------------------ */
 
-/**
- * Height of each automation lane in pixels
- */
-const LANE_HEIGHT = 24
+interface Tick {
+  time: number
+  x: number
+  major: boolean
+}
 
-/**
- * Color of the playhead line
- */
-const PLAYHEAD_COLOR = '#ff4444'
+function computeTicks(duration: number, width: number): Tick[] {
+  if (duration <= 0 || width <= 0) return []
+  // Choose interval so major ticks are ~80-120px apart
+  const pixelsPerSec = width / duration
+  const rawInterval = 80 / pixelsPerSec
+  const nice = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60]
+  const interval = nice.find((n) => n >= rawInterval) ?? 60
+  const majorEvery = interval < 1 ? 5 : interval < 5 ? 5 : 2
 
-/**
- * Downsamples an audio buffer to a specified number of points for waveform visualization
- * @param buffer - The audio buffer to downsample
- * @param targetPoints - The number of points to downsample to
- * @returns Array of peak values for visualization
- */
-function downsampleBuffer(buffer: AudioBuffer, targetPoints: number): number[] {
+  const ticks: Tick[] = []
+  let i = 0
+  for (let t = 0; t <= duration + 0.001; t += interval, i++) {
+    ticks.push({ time: t, x: (t / duration) * width, major: i % majorEvery === 0 })
+  }
+  return ticks
+}
+
+/* ------------------------------------------------------------------ */
+/*  Waveform downsample                                               */
+/* ------------------------------------------------------------------ */
+
+function downsampleBuffer(buffer: AudioBuffer, targetPoints: number): Float32Array {
   const data = buffer.getChannelData(0)
   const step = Math.max(1, Math.floor(data.length / targetPoints))
-  const peaks: number[] = []
+  const peaks = new Float32Array(targetPoints)
   for (let i = 0; i < targetPoints; i++) {
     const start = i * step
     const end = Math.min(start + step, data.length)
@@ -47,14 +61,15 @@ function downsampleBuffer(buffer: AudioBuffer, targetPoints: number): number[] {
       const abs = Math.abs(data[j])
       if (abs > max) max = abs
     }
-    peaks.push(max)
+    peaks[i] = max
   }
   return peaks
 }
 
-/**
- * Props for the WaveformRow component
- */
+/* ------------------------------------------------------------------ */
+/*  WaveformRow                                                       */
+/* ------------------------------------------------------------------ */
+
 interface WaveformRowProps {
   sourceId: string
   color: string
@@ -63,10 +78,6 @@ interface WaveformRowProps {
   width: number
 }
 
-/**
- * Renders a waveform visualization for a source in the timeline
- * @param props - Component props
- */
 function WaveformRow({ sourceId, color, duration, totalDuration, width }: WaveformRowProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -75,29 +86,52 @@ function WaveformRow({ sourceId, color, duration, totalDuration, width }: Wavefo
     if (!canvas) return
     const buffer = audioEngine.getAudioBuffer(sourceId)
     if (!buffer) return
-
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    const dpr = window.devicePixelRatio || 1
     const sourceWidth = totalDuration > 0 ? (duration / totalDuration) * width : width
-    canvas.width = width
-    canvas.height = ROW_HEIGHT
-
+    canvas.width = width * dpr
+    canvas.height = ROW_HEIGHT * dpr
+    ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, width, ROW_HEIGHT)
 
-    const targetPoints = Math.min(Math.floor(sourceWidth), 1000)
+    const targetPoints = Math.min(Math.floor(sourceWidth * 1.5), 1200)
     if (targetPoints <= 0) return
     const peaks = downsampleBuffer(buffer, targetPoints)
-
-    ctx.fillStyle = color + '66'
     const barWidth = sourceWidth / peaks.length
+    const midY = ROW_HEIGHT / 2
 
+    // Mirrored waveform with gradient fill
+    const grad = ctx.createLinearGradient(0, 2, 0, ROW_HEIGHT - 2)
+    grad.addColorStop(0, color + '10')
+    grad.addColorStop(0.35, color + '50')
+    grad.addColorStop(0.5, color + '70')
+    grad.addColorStop(0.65, color + '50')
+    grad.addColorStop(1, color + '10')
+
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.moveTo(0, midY)
     for (let i = 0; i < peaks.length; i++) {
-      const h = peaks[i] * (ROW_HEIGHT - 4)
-      const x = i * barWidth
-      const y = (ROW_HEIGHT - h) / 2
-      ctx.fillRect(x, y, Math.max(1, barWidth - 0.5), h)
+      const h = peaks[i] * (ROW_HEIGHT - 6) * 0.5
+      ctx.lineTo(i * barWidth, midY - h)
     }
+    ctx.lineTo(sourceWidth, midY)
+    for (let i = peaks.length - 1; i >= 0; i--) {
+      const h = peaks[i] * (ROW_HEIGHT - 6) * 0.5
+      ctx.lineTo(i * barWidth, midY + h)
+    }
+    ctx.closePath()
+    ctx.fill()
+
+    // Center spine line
+    ctx.strokeStyle = color + '30'
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    ctx.moveTo(0, midY)
+    ctx.lineTo(sourceWidth, midY)
+    ctx.stroke()
   }, [sourceId, color, duration, totalDuration, width])
 
   return (
@@ -108,9 +142,10 @@ function WaveformRow({ sourceId, color, duration, totalDuration, width }: Wavefo
   )
 }
 
-/**
- * Props for the AutomationLane component
- */
+/* ------------------------------------------------------------------ */
+/*  AutomationLane                                                    */
+/* ------------------------------------------------------------------ */
+
 interface AutomationLaneProps {
   sourceId: SourceId
   color: string
@@ -118,10 +153,6 @@ interface AutomationLaneProps {
   width: number
 }
 
-/**
- * Renders an automation lane with keyframes for a source
- * @param props - Component props
- */
 function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLaneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const keyframes = useAppStore((s) => s.animations[sourceId]?.keyframes ?? [])
@@ -131,15 +162,16 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; time: number } | null>(null)
   const [selectedEasing, setSelectedEasing] = useState<EasingType>('linear')
 
-  // Draw keyframe diamonds + connecting lines
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    canvas.width = width
-    canvas.height = LANE_HEIGHT
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = width * dpr
+    canvas.height = LANE_HEIGHT * dpr
+    ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, width, LANE_HEIGHT)
 
     if (keyframes.length === 0 || totalDuration <= 0) return
@@ -147,9 +179,10 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
     const timeToX = (t: number) => (t / totalDuration) * width
     const midY = LANE_HEIGHT / 2
 
-    // Connecting lines
-    ctx.strokeStyle = color + '66'
+    // Dashed connecting lines
+    ctx.strokeStyle = color + '40'
     ctx.lineWidth = 1
+    ctx.setLineDash([3, 3])
     ctx.beginPath()
     for (let i = 0; i < keyframes.length; i++) {
       const x = timeToX(keyframes[i].time)
@@ -157,17 +190,32 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
       else ctx.lineTo(x, midY)
     }
     ctx.stroke()
+    ctx.setLineDash([])
 
-    // Diamond markers
+    // Diamond markers with glow
     const size = 5
     for (const kf of keyframes) {
       const x = timeToX(kf.time)
+      // Glow
+      ctx.shadowColor = color
+      ctx.shadowBlur = 6
       ctx.fillStyle = color
       ctx.beginPath()
       ctx.moveTo(x, midY - size)
       ctx.lineTo(x + size, midY)
       ctx.lineTo(x, midY + size)
       ctx.lineTo(x - size, midY)
+      ctx.closePath()
+      ctx.fill()
+      ctx.shadowBlur = 0
+
+      // Inner highlight
+      ctx.fillStyle = '#ffffff40'
+      ctx.beginPath()
+      ctx.moveTo(x, midY - size + 2)
+      ctx.lineTo(x + size - 2, midY)
+      ctx.lineTo(x, midY - 1)
+      ctx.lineTo(x - size + 2, midY)
       ctx.closePath()
       ctx.fill()
     }
@@ -178,14 +226,10 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
     const time = (x / rect.width) * totalDuration
-
-    // Check if clicking near an existing keyframe (within 6px)
     const timeToX = (t: number) => (t / totalDuration) * rect.width
     for (const kf of keyframes) {
-      if (Math.abs(timeToX(kf.time) - x) < 6) return // handled by context menu
+      if (Math.abs(timeToX(kf.time) - x) < 6) return
     }
-
-    // Add keyframe at current source position
     const source = useAppStore.getState().sources.find((s) => s.id === sourceId)
     if (source) {
       setKeyframe(sourceId, time, source.position)
@@ -198,8 +242,6 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
     const timeToX = (t: number) => (t / totalDuration) * rect.width
-
-    // Find nearest keyframe within 8px
     for (const kf of keyframes) {
       if (Math.abs(timeToX(kf.time) - x) < 8) {
         setContextMenu({ x: e.clientX, y: e.clientY, time: kf.time })
@@ -218,7 +260,6 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
 
   const handleEasingChange = useCallback((easing: EasingType) => {
     if (!contextMenu) return
-    // Find the keyframe and re-add with new easing
     const kf = keyframes.find((k) => Math.abs(k.time - contextMenu.time) < 0.001)
     if (kf) {
       removeKeyframe(sourceId, kf.time)
@@ -229,7 +270,7 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
   }, [sourceId, contextMenu, keyframes, removeKeyframe, setKeyframe])
 
   return (
-    <div style={{ position: 'relative', height: LANE_HEIGHT, background: 'var(--bg-deep)' }}>
+    <div className="tl-lane">
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: LANE_HEIGHT, display: 'block', cursor: 'crosshair' }}
@@ -265,9 +306,80 @@ function AutomationLane({ sourceId, color, totalDuration, width }: AutomationLan
   )
 }
 
-/**
- * Timeline panel component for displaying audio sources and their automation
- */
+/* ------------------------------------------------------------------ */
+/*  TimeRuler                                                         */
+/* ------------------------------------------------------------------ */
+
+interface TimeRulerProps {
+  duration: number
+  width: number
+  playheadFraction: number
+  onSeek: (e: React.MouseEvent<HTMLCanvasElement>) => void
+}
+
+function TimeRuler({ duration, width, playheadFraction, onSeek }: TimeRulerProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = width * dpr
+    canvas.height = RULER_HEIGHT * dpr
+    ctx.scale(dpr, dpr)
+    ctx.clearRect(0, 0, width, RULER_HEIGHT)
+
+    const ticks = computeTicks(duration, width)
+
+    // Tick marks
+    for (const tick of ticks) {
+      ctx.strokeStyle = tick.major ? '#464d6480' : '#464d6430'
+      ctx.lineWidth = tick.major ? 1 : 0.5
+      ctx.beginPath()
+      ctx.moveTo(tick.x, tick.major ? 0 : RULER_HEIGHT * 0.45)
+      ctx.lineTo(tick.x, RULER_HEIGHT)
+      ctx.stroke()
+
+      if (tick.major) {
+        ctx.fillStyle = '#464d64'
+        ctx.font = '9px "Share Tech Mono", monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText(formatTimeCompact(tick.time), tick.x, 10)
+      }
+    }
+
+    // Playhead triangle marker
+    const px = playheadFraction * width
+    ctx.fillStyle = PLAYHEAD_COLOR
+    ctx.beginPath()
+    ctx.moveTo(px - 5, 0)
+    ctx.lineTo(px + 5, 0)
+    ctx.lineTo(px, 8)
+    ctx.closePath()
+    ctx.fill()
+  }, [duration, width, playheadFraction])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      onClick={onSeek}
+      style={{
+        width: '100%',
+        height: RULER_HEIGHT,
+        display: 'block',
+        cursor: 'col-resize',
+      }}
+    />
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  TimelinePanel                                                     */
+/* ------------------------------------------------------------------ */
+
 export function TimelinePanel() {
   const sources = useAppStore((s) => s.sources)
   const setSourceMuted = useAppStore((s) => s.setSourceMuted)
@@ -275,7 +387,6 @@ export function TimelinePanel() {
   const playheadPosition = useTransportStore((s) => s.playheadPosition)
   const duration = useTransportStore((s) => s.duration)
   const seek = useTransportStore((s) => s.seek)
-
   const animations = useAppStore((s) => s.animations)
 
   const [expandedLanes, setExpandedLanes] = useState<Set<SourceId>>(new Set())
@@ -288,6 +399,33 @@ export function TimelinePanel() {
     })
   }, [])
 
+  // Resizable height
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT)
+  const isDraggingResize = useRef(false)
+  const dragStartY = useRef(0)
+  const dragStartHeight = useRef(0)
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingResize.current = true
+    dragStartY.current = e.clientY
+    dragStartHeight.current = panelHeight
+
+    const onMove = (ev: MouseEvent) => {
+      if (!isDraggingResize.current) return
+      const delta = dragStartY.current - ev.clientY
+      const next = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, dragStartHeight.current + delta))
+      setPanelHeight(next)
+    }
+    const onUp = () => {
+      isDraggingResize.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [panelHeight])
+
   const containerRef = useRef<HTMLDivElement>(null)
   const trackAreaRef = useRef<HTMLDivElement>(null)
 
@@ -297,7 +435,7 @@ export function TimelinePanel() {
   }, [])
 
   const handleTimelineClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: React.MouseEvent<HTMLDivElement | HTMLCanvasElement>) => {
       if (duration <= 0) return
       const rect = e.currentTarget.getBoundingClientRect()
       const x = e.clientX - rect.left
@@ -308,127 +446,115 @@ export function TimelinePanel() {
   )
 
   const playheadFraction = duration > 0 ? playheadPosition / duration : 0
+  const trackWidth = getTrackWidth()
+
+  // Memoize grid lines canvas data url for track backgrounds
+  const gridBg = useMemo(() => {
+    if (duration <= 0 || trackWidth <= 0) return 'none'
+    const ticks = computeTicks(duration, trackWidth)
+    const majorTicks = ticks.filter((t) => t.major)
+    if (majorTicks.length === 0) return 'none'
+    // Build SVG grid overlay
+    const lines = majorTicks
+      .map((t) => `<line x1="${t.x}" y1="0" x2="${t.x}" y2="100%" stroke="%23464d6412" stroke-width="1"/>`)
+      .join('')
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${trackWidth}' height='100'>${lines}</svg>`
+    return `url("data:image/svg+xml,${svg}")`
+  }, [duration, trackWidth])
 
   return (
     <div
       ref={containerRef}
-      className="panel"
-      style={{
-        height: TIMELINE_HEIGHT,
-        borderTop: '1px solid var(--border-subtle)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        userSelect: 'none',
-      }}
+      className="tl-panel"
+      style={{ height: panelHeight }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '4px 8px',
-          borderBottom: '1px solid var(--border-subtle)',
-          fontSize: 10,
-          color: 'var(--text-muted)',
-          fontFamily: 'var(--font-mono)',
-          gap: 8,
-          flexShrink: 0,
-        }}
-      >
-        <span>TIMELINE</span>
-        <span style={{ marginLeft: 'auto' }}>
-          {formatTime(playheadPosition)} / {formatTime(duration)}
-        </span>
+      {/* Resize handle */}
+      <div className="tl-resize-handle" onMouseDown={handleResizeStart}>
+        <div className="tl-resize-grip" />
+      </div>
+
+      {/* Top bar: label + time readout */}
+      <div className="tl-topbar">
+        <div className="tl-topbar-label">TIMELINE</div>
+        <div className="tl-topbar-spacer" />
+        <div className="tl-time-readout">
+          <span className="tl-time-current">{formatTime(playheadPosition)}</span>
+          <span className="tl-time-sep">/</span>
+          <span className="tl-time-total">{formatTime(duration)}</span>
+        </div>
+      </div>
+
+      {/* Ruler row (header blank + ruler canvas) */}
+      <div className="tl-ruler-row">
+        <div className="tl-header-cell tl-ruler-corner" />
+        <div className="tl-ruler-track" ref={trackAreaRef}>
+          <TimeRuler
+            duration={duration}
+            width={trackWidth}
+            playheadFraction={playheadFraction}
+            onSeek={handleTimelineClick}
+          />
+        </div>
       </div>
 
       {/* Track rows */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-        {sources.map((source) => {
+      <div className="tl-tracks-scroll">
+        {sources.length === 0 && (
+          <div className="tl-empty">
+            Drop audio files to begin
+          </div>
+        )}
+
+        {sources.map((source, index) => {
           const buf = audioEngine.getAudioBuffer(source.id)
           const sourceDuration = buf?.duration ?? 0
           const hasKeyframes = (animations[source.id]?.keyframes.length ?? 0) > 0
           const isExpanded = expandedLanes.has(source.id)
 
           return (
-            <div key={source.id}>
-              <div
-                style={{
-                  display: 'flex',
-                  height: ROW_HEIGHT,
-                  borderBottom: '1px solid var(--border-subtle)',
-                  alignItems: 'center',
-                }}
-              >
-                {/* Source label + controls */}
-                <div
-                  style={{
-                    width: HEADER_WIDTH,
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '0 6px',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <span
+            <div key={source.id} className="tl-track-group">
+              {/* Main waveform row */}
+              <div className="tl-track-row">
+                {/* Track header */}
+                <div className="tl-header-cell">
+                  <div className="tl-track-number">{index + 1}</div>
+                  <div
+                    className="tl-track-led"
                     style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
                       background: source.color,
-                      flexShrink: 0,
+                      boxShadow: `0 0 6px ${source.color}50`,
                     }}
                   />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--text-primary)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                    }}
-                  >
-                    {source.label}
-                  </span>
-                  <button
-                    className={`btn-icon ${isExpanded ? 'btn-icon--soloed' : ''}`}
-                    onClick={() => toggleLane(source.id)}
-                    style={{ fontSize: 8, width: 16, height: 16, padding: 0, fontFamily: 'var(--font-mono)' }}
-                    title={isExpanded ? 'Hide automation' : `Show automation${hasKeyframes ? ` (${animations[source.id].keyframes.length} kf)` : ''}`}
-                  >
-                    A
-                  </button>
-                  <button
-                    className={`btn-icon ${source.isMuted ? 'btn-icon--muted' : ''}`}
-                    onClick={() => setSourceMuted(source.id, !source.isMuted)}
-                    style={{ fontSize: 9, width: 16, height: 16, padding: 0 }}
-                    title={source.isMuted ? 'Unmute' : 'Mute'}
-                  >
-                    M
-                  </button>
-                  <button
-                    className={`btn-icon ${source.isSoloed ? 'btn-icon--soloed' : ''}`}
-                    onClick={() => setSourceSoloed(source.id, !source.isSoloed)}
-                    style={{ fontSize: 9, width: 16, height: 16, padding: 0 }}
-                    title={source.isSoloed ? 'Unsolo' : 'Solo'}
-                  >
-                    S
-                  </button>
+                  <div className="tl-track-label">{source.label}</div>
+                  <div className="tl-track-btns">
+                    <button
+                      className={`tl-btn ${isExpanded ? 'tl-btn--active-amber' : ''}`}
+                      onClick={() => toggleLane(source.id)}
+                      title={isExpanded ? 'Hide automation' : `Show automation${hasKeyframes ? ` (${animations[source.id].keyframes.length} kf)` : ''}`}
+                    >
+                      A
+                    </button>
+                    <button
+                      className={`tl-btn ${source.isMuted ? 'tl-btn--active-red' : ''}`}
+                      onClick={() => setSourceMuted(source.id, !source.isMuted)}
+                      title={source.isMuted ? 'Unmute' : 'Mute'}
+                    >
+                      M
+                    </button>
+                    <button
+                      className={`tl-btn ${source.isSoloed ? 'tl-btn--active-amber' : ''}`}
+                      onClick={() => setSourceSoloed(source.id, !source.isSoloed)}
+                      title={source.isSoloed ? 'Unsolo' : 'Solo'}
+                    >
+                      S
+                    </button>
+                  </div>
                 </div>
 
                 {/* Waveform area */}
                 <div
-                  ref={trackAreaRef}
-                  style={{
-                    flex: 1,
-                    height: '100%',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    background: 'var(--bg-surface)',
-                  }}
+                  className="tl-waveform-area"
+                  style={{ backgroundImage: gridBg }}
                   onClick={handleTimelineClick}
                 >
                   {sourceDuration > 0 && (
@@ -437,67 +563,36 @@ export function TimelinePanel() {
                       color={source.color}
                       duration={sourceDuration}
                       totalDuration={duration}
-                      width={getTrackWidth()}
+                      width={trackWidth}
                     />
                   )}
-
                   {/* Playhead line */}
                   <div
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      bottom: 0,
-                      left: `${playheadFraction * 100}%`,
-                      width: 1,
-                      background: PLAYHEAD_COLOR,
-                      pointerEvents: 'none',
-                      zIndex: 1,
-                    }}
+                    className="tl-playhead-line"
+                    style={{ left: `${playheadFraction * 100}%` }}
                   />
                 </div>
               </div>
 
               {/* Automation lane */}
               {isExpanded && (
-                <div
-                  style={{
-                    display: 'flex',
-                    height: LANE_HEIGHT,
-                    borderBottom: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: HEADER_WIDTH,
-                      flexShrink: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '0 6px',
-                    }}
-                  >
-                    <span style={{ fontSize: 8, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>
-                      POS
-                    </span>
+                <div className="tl-track-row tl-track-row--lane">
+                  <div className="tl-header-cell tl-header-cell--lane">
+                    <span className="tl-lane-label">POS</span>
+                    {hasKeyframes && (
+                      <span className="tl-lane-count">{animations[source.id].keyframes.length}</span>
+                    )}
                   </div>
-                  <div style={{ flex: 1, position: 'relative' }}>
+                  <div className="tl-waveform-area tl-waveform-area--lane" style={{ backgroundImage: gridBg }}>
                     <AutomationLane
                       sourceId={source.id}
                       color={source.color}
                       totalDuration={duration}
-                      width={getTrackWidth()}
+                      width={trackWidth}
                     />
-                    {/* Playhead line in lane */}
                     <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        bottom: 0,
-                        left: `${playheadFraction * 100}%`,
-                        width: 1,
-                        background: PLAYHEAD_COLOR,
-                        pointerEvents: 'none',
-                        zIndex: 1,
-                      }}
+                      className="tl-playhead-line"
+                      style={{ left: `${playheadFraction * 100}%` }}
                     />
                   </div>
                 </div>
@@ -510,12 +605,19 @@ export function TimelinePanel() {
   )
 }
 
-/**
- * Formats seconds into MM:SS time string
- * @param seconds - Time in seconds to format
- * @returns Formatted time string
- */
+/* ------------------------------------------------------------------ */
+/*  Time formatters                                                   */
+/* ------------------------------------------------------------------ */
+
 function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return '0:00.0'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  const ms = Math.floor((seconds % 1) * 10)
+  return `${m}:${s.toString().padStart(2, '0')}.${ms}`
+}
+
+function formatTimeCompact(seconds: number): string {
   if (!isFinite(seconds) || seconds < 0) return '0:00'
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)

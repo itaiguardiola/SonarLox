@@ -41,6 +41,17 @@ export interface SerializedState {
     presets: Array<{ position: [number, number, number]; target: [number, number, number] } | null>
   }
   plugins?: SerializedPluginState[]
+  video?: {
+    fileName: string | null
+    offset: number
+    frameRate: number
+    opacity: number
+    visible: boolean
+    screenPosition: [number, number, number]
+    screenScale: number
+    screenLocked: boolean
+    screenVisible: boolean
+  }
 }
 
 export function serializeProjectState(appState: AppState, transportState: TransportState): string {
@@ -79,6 +90,17 @@ export function serializeProjectState(appState: AppState, transportState: Transp
     camera: {
       presets: appState.cameraPresets,
     },
+    video: {
+      fileName: appState.videoFileName,
+      offset: appState.videoOffset,
+      frameRate: appState.videoFrameRate,
+      opacity: appState.videoOpacity,
+      visible: appState.isVideoVisible,
+      screenPosition: appState.videoScreenPosition,
+      screenScale: appState.videoScreenScale,
+      screenLocked: appState.videoScreenLocked,
+      screenVisible: appState.videoScreenVisible,
+    },
   }
 
   return JSON.stringify(state, null, 2)
@@ -101,6 +123,17 @@ export interface DeserializedState {
   roomSize: [number, number]
   cameraPresets: ({ position: [number, number, number]; target: [number, number, number] } | null)[]
   selectedOutputDevice: string | null
+  video: {
+    fileName: string | null
+    offset: number
+    frameRate: number
+    opacity: number
+    visible: boolean
+    screenPosition: [number, number, number]
+    screenScale: number
+    screenLocked: boolean
+    screenVisible: boolean
+  }
 }
 
 export function deserializeProjectState(stateJson: Record<string, unknown>): DeserializedState {
@@ -127,6 +160,17 @@ export function deserializeProjectState(stateJson: Record<string, unknown>): Des
     roomSize: [s.room?.dimensions?.[0] ?? 20, s.room?.dimensions?.[2] ?? 20],
     cameraPresets: s.camera?.presets ?? [null, null, null, null],
     selectedOutputDevice: s.preferences?.selectedOutputDevice ?? null,
+    video: {
+      fileName: s.video?.fileName ?? null,
+      offset: s.video?.offset ?? 0,
+      frameRate: s.video?.frameRate ?? 24,
+      opacity: s.video?.opacity ?? 1.0,
+      visible: s.video?.visible ?? true,
+      screenPosition: s.video?.screenPosition ?? [0, 3, -4],
+      screenScale: s.video?.screenScale ?? 3,
+      screenLocked: s.video?.screenLocked ?? false,
+      screenVisible: s.video?.screenVisible ?? true,
+    },
   }
 }
 
@@ -137,11 +181,12 @@ export function buildManifest(
   sampleRate: number,
   author = 'User',
   animations: Record<SourceId, SourceAnimation>,
+  videoFilePath: string | null = null,
 ): ProjectManifest {
   return {
     format: 'sonarlox-project',
-    version: '1.0',
-    createdWith: 'SonarLox v1.0',
+    version: '1.1',
+    createdWith: 'SonarLox v1.1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     title,
@@ -152,7 +197,7 @@ export function buildManifest(
     audioEmbedMode: 'embedded',
     sourceCount: sources.length,
     hasTimeline: Object.keys(animations).length > 0,
-    hasVideoSync: false,
+    hasVideoSync: videoFilePath !== null,
     monitoringMode: 'binaural',
   }
 }
@@ -182,5 +227,10 @@ export function deserializePluginState(stateJson: Record<string, unknown>): Seri
   return plugins
     .map((p) => ({
       pluginId: (p.pluginId as string) ?? '',
-      parameters: (p.parameters as Record<string, number | boolean | string>) ?? {},\r\n      target: (p.target as SourceId | 'master') ?? 'master',\r\n      slot: (p.slot as number) ?? 0,\r\n      enabled: (p.enabled as boolean) ?? true,\r\n    }))\r\n    .filter((p) => p.pluginId !== '')\r\n}\r\n"
+      parameters: (p.parameters as Record<string, number | boolean | string>) ?? {},
+      target: (p.target as SourceId | 'master') ?? 'master',
+      slot: (p.slot as number) ?? 0,
+      enabled: (p.enabled as boolean) ?? true,
+    }))
+    .filter((p) => p.pluginId !== '')
 }

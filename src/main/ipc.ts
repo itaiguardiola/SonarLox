@@ -150,6 +150,17 @@ ipcMain.handle('plugins:get-dir', async () => {
   return getPluginsDir()
 })
 
+ipcMain.handle('open-video-file', async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [{ name: 'Video', extensions: ['mp4', 'webm', 'mov', 'mkv'] }],
+    properties: ['openFile']
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  const filePath = result.filePaths[0]
+  const name = filePath.split(/[\\/]/).pop() || 'video'
+  return { filePath, name }
+})
+
 ipcMain.handle('open-soundfont-file', async () => {
   const result = await dialog.showOpenDialog({
     filters: [{ name: 'SoundFont', extensions: ['sf2'] }],
