@@ -11,8 +11,16 @@ import { renderMidiTrack } from '../audio/MidiSynth'
 import { getTrack } from '../audio/midiTrackCache'
 import { SourceList } from './SourceList'
 import { ExportDialog } from './ExportDialog'
+import { useProjectIO } from '../hooks/useProjectIO'
 
 export function ControlPanel() {
+  const { saveProject, openProject, newProject } = useProjectIO()
+  const projectTitle = useAppStore((s) => s.projectTitle)
+  const isDirty = useAppStore((s) => s.isDirty)
+  const setProjectTitle = useAppStore((s) => s.setProjectTitle)
+
+  const currentProjectPath = useAppStore((s) => s.currentProjectPath)
+
   const isPlaying = useTransportStore((s) => s.isPlaying)
   const isPaused = useTransportStore((s) => s.isPaused)
   const isLooping = useTransportStore((s) => s.isLooping)
@@ -199,6 +207,40 @@ export function ControlPanel() {
           marginTop: 2,
         }}>
           SPATIAL AUDIO EDITOR
+        </div>
+      </div>
+
+      <div className="divider" />
+
+      {/* Project Session */}
+      <div className="project-session">
+        <span className="section-label">Session</span>
+        <div className="project-title-well">
+          <span className={isDirty ? 'project-dirty-led' : 'project-clean-led'}
+            title={isDirty ? 'Unsaved changes' : 'Saved'}
+          />
+          <input
+            className="project-title-input"
+            type="text"
+            value={projectTitle}
+            onChange={(e) => setProjectTitle(e.target.value)}
+            placeholder="Untitled"
+            spellCheck={false}
+          />
+        </div>
+        {currentProjectPath && (
+          <div className="project-path" title={currentProjectPath}>
+            {currentProjectPath.split(/[\\/]/).pop()}
+          </div>
+        )}
+        <div className="project-actions">
+          <button className="btn" onClick={newProject}>New</button>
+          <button className="btn" onClick={() => openProject()}>Open</button>
+          <button className="btn btn--accent" onClick={() => saveProject()}>Save</button>
+        </div>
+        <div className="project-hints">
+          <span><span className="project-hint-key">Ctrl+S</span> save</span>
+          <span><span className="project-hint-key">Ctrl+O</span> open</span>
         </div>
       </div>
 

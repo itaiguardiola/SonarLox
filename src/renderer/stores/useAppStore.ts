@@ -30,7 +30,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (sources.length >= MAX_SOURCES) return
     nextSourceIndex++
     const newSource = createDefaultSource(nextSourceIndex, type)
-    set({ sources: [...sources, newSource], selectedSourceId: newSource.id })
+    set({ sources: [...sources, newSource], selectedSourceId: newSource.id, isDirty: true })
   },
 
   removeSource: (id: SourceId) => {
@@ -39,7 +39,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const filtered = sources.filter((s) => s.id !== id)
     const newSelected =
       selectedSourceId === id ? filtered[0]?.id ?? null : selectedSourceId
-    set({ sources: filtered, selectedSourceId: newSelected })
+    set({ sources: filtered, selectedSourceId: newSelected, isDirty: true })
   },
 
   selectSource: (id: SourceId | null) => set({ selectedSourceId: id }),
@@ -47,11 +47,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSourcePosition: (id, position) =>
     set((state) => ({
       sources: state.sources.map((s) => (s.id === id ? { ...s, position } : s)),
+      isDirty: true,
     })),
 
   setSourceVolume: (id, volume) =>
     set((state) => ({
       sources: state.sources.map((s) => (s.id === id ? { ...s, volume } : s)),
+      isDirty: true,
     })),
 
   setSourceAudioFileName: (id, audioFileName) =>
@@ -59,6 +61,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sources: state.sources.map((s) =>
         s.id === id ? { ...s, audioFileName } : s
       ),
+      isDirty: true,
     })),
 
   setSourceSineFrequency: (id, sineFrequency) =>
@@ -66,6 +69,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sources: state.sources.map((s) =>
         s.id === id ? { ...s, sineFrequency } : s
       ),
+      isDirty: true,
     })),
 
   setSourceMuted: (id, isMuted) =>
@@ -73,6 +77,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sources: state.sources.map((s) =>
         s.id === id ? { ...s, isMuted } : s
       ),
+      isDirty: true,
     })),
 
   setSourceSoloed: (id, isSoloed) =>
@@ -80,6 +85,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sources: state.sources.map((s) =>
         s.id === id ? { ...s, isSoloed } : s
       ),
+      isDirty: true,
     })),
 
   setSourceLabel: (id, label) =>
@@ -87,17 +93,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       sources: state.sources.map((s) =>
         s.id === id ? { ...s, label } : s
       ),
+      isDirty: true,
     })),
 
   soundFontName: null,
   setSoundFontName: (soundFontName) => set({ soundFontName }),
+
+  currentProjectPath: null,
+  projectTitle: 'Untitled',
+  isDirty: false,
+  setCurrentProjectPath: (currentProjectPath) => set({ currentProjectPath }),
+  setProjectTitle: (projectTitle) => set({ projectTitle, isDirty: true }),
+  markDirty: () => set({ isDirty: true }),
+  markClean: () => set({ isDirty: false }),
 
   isPlaying: false,
   isLooping: true,
   listenerY: 0,
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setIsLooping: (isLooping) => set({ isLooping }),
-  setListenerY: (listenerY) => set({ listenerY }),
+  setListenerY: (listenerY) => set({ listenerY, isDirty: true }),
 
   isExporting: false,
   setIsExporting: (isExporting) => set({ isExporting }),
@@ -105,7 +120,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setExportProgress: (exportProgress) => set({ exportProgress }),
 
   masterVolume: 1.0,
-  setMasterVolume: (masterVolume) => set({ masterVolume }),
+  setMasterVolume: (masterVolume) => set({ masterVolume, isDirty: true }),
   selectedOutputDevice: null,
   setSelectedOutputDevice: (selectedOutputDevice) => set({ selectedOutputDevice }),
 

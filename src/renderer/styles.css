@@ -412,3 +412,124 @@ input[type="range"]::-webkit-slider-runnable-track {
 .export-radio-label input[type="radio"] {
   accent-color: var(--accent-amber);
 }
+
+/* ---- Project Session Panel ---- */
+.project-session {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-title-well {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  padding: 5px 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle inner shadow for recessed look */
+.project-title-well::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  border-radius: 3px;
+}
+
+.project-title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  color: var(--accent-teal);
+  caret-color: var(--accent-amber);
+  min-width: 0;
+}
+
+.project-title-input::placeholder {
+  color: var(--text-muted);
+}
+
+.project-title-input:focus {
+  color: var(--text-bright);
+}
+
+/* Dirty indicator LED */
+.project-dirty-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent-amber);
+  box-shadow: 0 0 6px var(--accent-amber-glow), 0 0 2px var(--accent-amber);
+  animation: dirtyPulse 2s ease-in-out infinite;
+}
+
+@keyframes dirtyPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--accent-amber-glow), 0 0 2px var(--accent-amber); }
+  50% { opacity: 0.5; box-shadow: 0 0 3px var(--accent-amber-glow); }
+}
+
+/* Clean/saved indicator */
+.project-clean-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent-teal-dim);
+  box-shadow: 0 0 3px var(--accent-teal-glow);
+}
+
+/* File path readout */
+.project-path {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+/* Project action buttons row */
+.project-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.project-actions .btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-radius: 3px;
+}
+
+/* Keyboard shortcut hints */
+.project-hints {
+  display: flex;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-muted);
+  letter-spacing: 0.4px;
+  opacity: 0.7;
+}
+
+.project-hint-key {
+  color: var(--text-secondary);
+}

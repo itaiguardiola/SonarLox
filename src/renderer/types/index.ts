@@ -76,6 +76,15 @@ export interface AppState {
   selectedOutputDevice: string | null
   setSelectedOutputDevice: (id: string | null) => void
 
+  // Project
+  currentProjectPath: string | null
+  projectTitle: string
+  isDirty: boolean
+  setCurrentProjectPath: (path: string | null) => void
+  setProjectTitle: (title: string) => void
+  markDirty: () => void
+  markClean: () => void
+
   // Export
   isExporting: boolean
   setIsExporting: (v: boolean) => void
@@ -99,6 +108,40 @@ export interface SaveWavResult {
   path?: string
 }
 
+export interface ProjectManifest {
+  format: 'sonarlox-project'
+  version: string
+  createdWith: string
+  createdAt: string
+  updatedAt: string
+  title: string
+  author: string
+  description: string
+  duration: number
+  sampleRate: number
+  audioEmbedMode: 'embedded' | 'referenced'
+  sourceCount: number
+  hasTimeline: boolean
+  hasVideoSync: boolean
+  monitoringMode: string
+}
+
+export interface ProjectSaveData {
+  filePath: string
+  manifest: string
+  state: string
+  timeline: string
+  audioFiles: Array<{ name: string; wavBuffer: ArrayBuffer; meta: string }>
+}
+
+export interface ProjectOpenResult {
+  manifest: ProjectManifest
+  state: Record<string, unknown>
+  timeline: Record<string, unknown>
+  audioFiles: Array<{ name: string; buffer: ArrayBuffer; meta: Record<string, unknown> }>
+  filePath: string
+}
+
 export interface ElectronAPI {
   openAudioFile: () => Promise<AudioFileResult | null>
   openMidiFile: () => Promise<AudioFileResult | null>
@@ -106,6 +149,9 @@ export interface ElectronAPI {
   saveWavFile: (buffer: ArrayBuffer, defaultPath?: string) => Promise<SaveWavResult>
   selectDirectory: () => Promise<string | null>
   saveWavFileToPath: (buffer: ArrayBuffer, filePath: string, expectedDir?: string) => Promise<SaveWavResult>
+  saveProject: (data: ProjectSaveData) => Promise<{ saved: boolean; path: string }>
+  openProject: () => Promise<ProjectOpenResult | null>
+  saveProjectDialog: () => Promise<string | null>
 }
 
 declare global {

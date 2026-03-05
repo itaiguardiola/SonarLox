@@ -1,6 +1,7 @@
 import { ipcMain, dialog } from 'electron'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { dirname, resolve } from 'path'
+import { saveProject, openProject } from './projectIO'
 
 ipcMain.handle('save-wav-file', async (_event, wavBuffer: ArrayBuffer, defaultPath?: string) => {
   const result = await dialog.showSaveDialog({
@@ -69,6 +70,51 @@ ipcMain.handle(
     }
   }
 )
+
+// Project save/open handlers
+ipcMain.handle('project:save', async (_event, data: {
+  filePath: string
+  manifest: string
+  state: string
+  timeline: string
+  audioFiles: Array<{ name: string; wavBuffer: ArrayBuffer; meta: string }>
+}) => {
+  try {
+    const resolved = resolve(data.filePath)
+    await mkdir(dirname(resolved), { recursive: true })
+    return await saveProject({ ...data, filePath: resolved })
+  } catch (err) {
+    console.error('Failed to save project:', err)
+    return { saved: false, path: '' }
+  }
+})
+
+ipcMain.handle('project:open', async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [
+      { name: 'SonarLox Project', extensions: ['sonarlox'] },
+      { name: 'All Files', extensions: ['*'] }
+    ],
+    properties: ['openFile']
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  try {
+    const data = await openProject(result.filePaths[0])
+    return { ...data, filePath: result.filePaths[0] }
+  } catch (err) {
+    console.error('Failed to open project:', err)
+    return null
+  }
+})
+
+ipcMain.handle('project:save-dialog', async () => {
+  const result = await dialog.showSaveDialog({
+    filters: [{ name: 'SonarLox Project', extensions: ['sonarlox'] }],
+    defaultPath: 'untitled.sonarlox'
+  })
+  if (result.canceled || !result.filePath) return null
+  return result.filePath
+})
 
 ipcMain.handle('open-soundfont-file', async () => {
   const result = await dialog.showOpenDialog({

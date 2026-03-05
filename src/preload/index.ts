@@ -11,6 +11,15 @@ if (process.contextIsolated) {
       ipcRenderer.invoke('save-wav-file', buffer, defaultPath),
     selectDirectory: () => ipcRenderer.invoke('select-directory'),
     saveWavFileToPath: (buffer: ArrayBuffer, filePath: string, expectedDir?: string) =>
-      ipcRenderer.invoke('save-wav-file-to-path', buffer, filePath, expectedDir)
+      ipcRenderer.invoke('save-wav-file-to-path', buffer, filePath, expectedDir),
+    saveProject: (data: {
+      filePath: string
+      manifest: string
+      state: string
+      timeline: string
+      audioFiles: Array<{ name: string; wavBuffer: ArrayBuffer; meta: string }>
+    }) => ipcRenderer.invoke('project:save', data),
+    openProject: () => ipcRenderer.invoke('project:open'),
+    saveProjectDialog: () => ipcRenderer.invoke('project:save-dialog') as Promise<string | null>
   })
 }
