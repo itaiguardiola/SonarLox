@@ -216,13 +216,6 @@ export class SourceChannel {
   }
 
   /**
-   * Sets the mute state of the audio source.
-   */
-  setMuted(muted: boolean): void {
-    this.gainNode.gain.value = muted ? 0 : 1
-  }
-
-  /**
    * Disposes of the audio resources for this channel.
    */
   dispose(): void {

@@ -151,18 +151,6 @@ class WebAudioEngine implements IAudioEngine {
   }
 
   /**
-   * Sets the mute state of an audio source.
-   */
-  setMuted(id: SourceId, muted: boolean): void {
-    const channel = this.channels.get(id)
-    if (!channel) return
-    if (muted) {
-      channel.gainNode.gain.value = 0
-    }
-    // unmute is handled by AudioBridge setting the real volume
-  }
-
-  /**
    * Sets the solo state of an audio source.
    */
   setSoloed(id: SourceId, soloed: boolean): void {

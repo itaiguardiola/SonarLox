@@ -21,18 +21,12 @@ export interface SourceSlice {
 
 let nextSourceIndex = 0
 
-const TYPE_LABELS: Record<SourceType, string> = {
-  'file': 'Audio',
-  'tone': 'Tone',
-  'midi-track': 'MIDI',
-}
-
 function createDefaultSource(index: number, type: SourceType): AudioSource {
   return {
     id: crypto.randomUUID(),
-    label: `${TYPE_LABELS[type]} ${index}`,
+    label: `Source ${index}`,
     sourceType: type,
-    position: [2 + (index - 1) * 1.5, 1, (index - 1) * 1.5],
+    position: [2 + (index - 1) * 1.5, 1, 2 + (index - 1) * 1.5],
     volume: 1.0,
     color: SOURCE_COLORS[(index - 1) % SOURCE_COLORS.length],
     audioFileName: null,
