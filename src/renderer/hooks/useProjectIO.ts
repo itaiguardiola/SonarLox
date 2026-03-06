@@ -205,10 +205,24 @@ export function useProjectIO() {
    * Directly load a project from a given file path.
    */
   const loadProjectFile = useCallback(async (path: string) => {
-    if (!window.api?.openProjectFromPath) return
-    const result = await window.api.openProjectFromPath(path)
-    if (result) {
-      await loadProjectData(result)
+    console.log(`SonarLox: loadProjectFile request for: ${path}`)
+    if (!window.api?.openProjectFromPath) {
+      console.error('SonarLox: openProjectFromPath not available in window.api')
+      return false
+    }
+    try {
+      const result = await window.api.openProjectFromPath(path)
+      if (result) {
+        await loadProjectData(result)
+        console.log(`SonarLox: Successfully loaded project from path: ${path}`)
+        return true
+      } else {
+        console.error(`SonarLox: Failed to open project from path (no result): ${path}`)
+        return false
+      }
+    } catch (err) {
+      console.error(`SonarLox: Error in loadProjectFile for ${path}:`, err)
+      return false
     }
   }, [loadProjectData])
 

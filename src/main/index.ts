@@ -23,16 +23,21 @@ let mainWindow: BrowserWindow | null = null
 let initialFilePath: string | null = null
 
 async function handleCli(): Promise<boolean> {
-  const args = process.argv.slice(app.isPackaged ? 1 : 2)
+  const args = process.argv
   
-  // Detect .slx file in arguments
-  const slxArg = args.find(arg => arg.toLowerCase().endsWith('.slx'))
+  // Detect .slx or .sonarlox file in any argument position
+  const slxArg = args.find(arg => 
+    arg.toLowerCase().endsWith('.slx') || 
+    arg.toLowerCase().endsWith('.sonarlox')
+  )
   if (slxArg) {
     initialFilePath = resolve(slxArg)
+    console.log(`SonarLox: Detected initial project path: ${initialFilePath}`)
   }
 
-  // --separate <input> [--out <dir>] [--model <model>] [--device <device>]
-  const separateIdx = args.indexOf('--separate')
+  // Slice for subcommand handling: skip electron and current dir if not packaged
+  const subArgs = args.slice(app.isPackaged ? 1 : 2)
+  const separateIdx = subArgs.indexOf('--separate')
   if (separateIdx !== -1) {
     const input = args[separateIdx + 1]
     if (!input) {
@@ -126,7 +131,14 @@ function createWindow(): void {
   // Handle auto-opening the initial project
   mainWindow.webContents.on('dom-ready', () => {
     if (initialFilePath && mainWindow) {
-      mainWindow.webContents.send('open-initial-project', initialFilePath)
+      const pathToSend = initialFilePath
+      console.log(`SonarLox: Sending initial project to renderer: ${pathToSend}`)
+      // Small delay to ensure React components have mounted and established the listener
+      setTimeout(() => {
+        if (mainWindow) {
+          mainWindow.webContents.send('open-initial-project', pathToSend)
+        }
+      }, 1000)
       // Only do it once
       initialFilePath = null
     }
