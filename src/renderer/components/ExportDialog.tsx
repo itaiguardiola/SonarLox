@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { audioEngine } from '../audio/WebAudioEngine'
-import type { ExportSource } from '../audio/Exporter'
+import type { RenderSource } from '../audio/Exporter'
 import {
   exportMixedBinauralWav,
   export51Wav,
@@ -41,7 +41,7 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
         extension = 'bin'
       } else {
         const appState = useAppStore.getState()
-        const exportSources: ExportSource[] = appState.sources
+        const exportSources: RenderSource[] = appState.sources
           .filter((s) => {
             if (s.isMuted) return false
             const anySoloed = appState.sources.some((x) => x.isSoloed)
@@ -49,10 +49,10 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
             return audioEngine.getAudioBuffer(s.id) !== null
           })
           .map((s) => ({
+            sourceId: s.id,
             audioBuffer: audioEngine.getAudioBuffer(s.id)!,
             position: s.position,
             volume: s.volume,
-            sourceId: s.id,
           }))
 
         switch (mode) {

@@ -5,7 +5,7 @@ import { parseMidi } from '../audio/MidiParser'
 import { renderMidiTrack } from '../audio/MidiSynth'
 import { isLoaded as isSoundFontLoaded, renderMidiTrackWithSoundFont } from '../audio/SoundFontPlayer'
 import { setTrack, deleteTrack } from '../audio/midiTrackCache'
-import { MAX_SOURCES } from '../types'
+import { DEFAULT_MAX_SOURCES } from '../types'
 import type { SourceType } from '../types'
 import { useTransportStore } from '../stores/useTransportStore'
 import { useToast } from './ToastContext'
@@ -130,7 +130,7 @@ export function SourceList() {
       await audioEngine.init()
 
       const tracks = parseMidi(result.buffer)
-      const remaining = MAX_SOURCES - useAppStore.getState().sources.length
+      const remaining = DEFAULT_MAX_SOURCES - useAppStore.getState().sources.length
       const tracksToLoad = tracks.slice(0, remaining)
 
       for (let i = 0; i < tracksToLoad.length; i++) {
@@ -160,7 +160,7 @@ export function SourceList() {
     }
   }
 
-  const atMax = sources.length >= MAX_SOURCES
+  const atMax = sources.length >= DEFAULT_MAX_SOURCES
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -396,7 +396,7 @@ export function SourceList() {
         const sel = sources.find((s) => s.id === selectedSourceId)
         if (!sel || sel.sourceType !== 'file' || !sel.audioFileName) return null
         const isSeparating = demucsStatus === 'separating'
-        const slotsAvailable = MAX_SOURCES - sources.length >= 4
+        const slotsAvailable = DEFAULT_MAX_SOURCES - sources.length >= 4
 
         return (
           <button

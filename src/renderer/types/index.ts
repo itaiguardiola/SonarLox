@@ -37,9 +37,14 @@ export const SOURCE_COLORS = [
 ] as const
 
 /**
- * Maximum number of audio sources supported in the editor
+ * Default maximum number of audio sources supported in the editor
  */
-export const MAX_SOURCES = 12
+export const DEFAULT_MAX_SOURCES = 12
+
+/**
+ * Absolute maximum number of audio sources (upper bound for user-configurable limit)
+ */
+export const ABSOLUTE_MAX_SOURCES = 32
 
 /**
  * Types of audio sources available in the editor

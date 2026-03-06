@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand'
-import { AppState, AudioSource, SourceId, SourcePosition, SourceType, SOURCE_COLORS, MAX_SOURCES } from '../../types'
+import { AppState, AudioSource, SourceId, SourcePosition, SourceType, SOURCE_COLORS, DEFAULT_MAX_SOURCES, ABSOLUTE_MAX_SOURCES } from '../../types'
 
 export interface SourceSlice {
   sources: AudioSource[]
@@ -43,7 +43,7 @@ export const createSourceSlice: StateCreator<AppState, [], [], SourceSlice> = (s
   addSource: (type: SourceType) => {
     get().recordHistory(`Add ${type} source`)
     const { sources } = get()
-    if (sources.length >= MAX_SOURCES) return
+    if (sources.length >= DEFAULT_MAX_SOURCES) return
     nextSourceIndex++
     const newSource = createDefaultSource(nextSourceIndex, type)
     set({ sources: [...sources, newSource], selectedSourceId: newSource.id, isDirty: true })
@@ -51,7 +51,7 @@ export const createSourceSlice: StateCreator<AppState, [], [], SourceSlice> = (s
 
   addSourceRaw: (source: AudioSource) => {
     const { sources } = get()
-    if (sources.length >= MAX_SOURCES) return
+    if (sources.length >= ABSOLUTE_MAX_SOURCES) return
     set({ sources: [...sources, source], isDirty: true })
   },
 

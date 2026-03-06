@@ -3,7 +3,7 @@ import { useAppStore } from '../stores/useAppStore'
 import { useTransportStore } from '../stores/useTransportStore'
 import { audioEngine } from '../audio/WebAudioEngine'
 import { useToast } from '../components/ToastContext'
-import { MAX_SOURCES } from '../types'
+import { DEFAULT_MAX_SOURCES } from '../types'
 import type { AudioSource } from '../types'
 
 const STEM_COUNT = 4
@@ -19,7 +19,7 @@ export function useDemucsSeparate() {
       return
     }
 
-    const availableSlots = MAX_SOURCES - state.sources.length
+    const availableSlots = DEFAULT_MAX_SOURCES - state.sources.length
     if (availableSlots < STEM_COUNT) {
       showToast(`Need ${STEM_COUNT} free slots but only ${availableSlots} available`, 'error')
       return

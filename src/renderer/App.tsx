@@ -5,7 +5,7 @@ import { TimelinePanel } from './components/TimelinePanel'
 import { ToastProvider } from './components/Toast'
 import { useToast } from './components/ToastContext'
 import { useAppStore } from './stores/useAppStore'
-import { MAX_SOURCES } from './types'
+import { DEFAULT_MAX_SOURCES } from './types'
 import { audioEngine } from './audio/WebAudioEngine'
 import { useProjectIO } from './hooks/useProjectIO'
 import { VideoPanel } from './components/VideoPanel'
@@ -50,29 +50,28 @@ export default function App() {
     const files = Array.from(e.dataTransfer.files)
     if (files.length === 0) return
 
-    const { addSource, sources, setSourceAudioFileName, setSourceAudioFilePath } = useAppStore.getState()
-    
+    const { addSource, setSourceAudioFileName, setSourceAudioFilePath } = useAppStore.getState()
+
     for (const file of files) {
       const isAudio = /\.(wav|mp3|ogg|flac)$/i.test(file.name)
       const isMidi = /\.mid$/i.test(file.name)
 
       if (isAudio || isMidi) {
-        if (sources.length >= MAX_SOURCES) {
-          showToast(`Maximum ${MAX_SOURCES} sources reached`, 'error')
+        if (useAppStore.getState().sources.length >= DEFAULT_MAX_SOURCES) {
+          showToast(`Maximum ${DEFAULT_MAX_SOURCES} sources reached`, 'error')
           break
         }
 
         try {
           const buffer = await file.arrayBuffer()
           addSource(isMidi ? 'midi-track' : 'file')
-          
-          const state = useAppStore.getState()
-          const newSource = state.sources[state.sources.length - 1]
+
+          const newSource = useAppStore.getState().sources[useAppStore.getState().sources.length - 1]
           
           if (isAudio) {
             await audioEngine.loadFile(newSource.id, buffer)
             setSourceAudioFileName(newSource.id, file.name)
-            if (file.path) setSourceAudioFilePath(newSource.id, file.path)
+            if ((file as File & { path?: string }).path) setSourceAudioFilePath(newSource.id, (file as File & { path?: string }).path!)
             showToast(`Added audio: ${file.name}`, 'success')
           } else {
             await audioEngine.loadFile(newSource.id, buffer)

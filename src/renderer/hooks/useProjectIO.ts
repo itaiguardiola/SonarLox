@@ -222,6 +222,7 @@ export function useProjectIO() {
         volume: 1.0,
         color: '#ff6622',
         audioFileName: null,
+        audioFilePath: null,
         sineFrequency: 440,
         isMuted: false,
         isSoloed: false,
