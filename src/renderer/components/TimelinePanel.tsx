@@ -380,12 +380,27 @@ function TimeRuler({ duration, width, playheadFraction, onSeek }: TimeRulerProps
 
 export function TimelinePanel() {
   const sources = useAppStore((s) => s.sources)
+  const selectedSourceId = useAppStore((s) => s.selectedSourceId)
+  const selectSource = useAppStore((s) => s.selectSource)
   const setSourceMuted = useAppStore((s) => s.setSourceMuted)
   const setSourceSoloed = useAppStore((s) => s.setSourceSoloed)
+
   const playheadPosition = useTransportStore((s) => s.playheadPosition)
   const duration = useTransportStore((s) => s.duration)
   const seek = useTransportStore((s) => s.seek)
+  const isPlaying = useTransportStore((s) => s.isPlaying)
+  const isPaused = useTransportStore((s) => s.isPaused)
+  const isLooping = useTransportStore((s) => s.isLooping)
+  const play = useTransportStore((s) => s.play)
+  const pause = useTransportStore((s) => s.pause)
+  const stop = useTransportStore((s) => s.stop)
+  const toggleLoop = useTransportStore((s) => s.toggleLoop)
+
   const animations = useAppStore((s) => s.animations)
+
+  const hasVideo = useAppStore((s) => s.videoFilePath !== null)
+  const hasAnyAudio = sources.some((s) => s.audioFileName !== null) && audioEngine.hasAnyBuffer()
+  const canPlay = hasAnyAudio || hasVideo
 
   const [expandedLanes, setExpandedLanes] = useState<Set<SourceId>>(new Set())
   const toggleLane = useCallback((id: SourceId) => {
@@ -472,9 +487,39 @@ export function TimelinePanel() {
         <div className="tl-resize-grip" />
       </div>
 
-      {/* Top bar: label + time readout */}
+      {/* Top bar: label + transport + time readout */}
       <div className="tl-topbar">
         <div className="tl-topbar-label">TIMELINE</div>
+
+        <div className="tl-topbar-transport" style={{ display: 'flex', gap: 4, marginLeft: 12 }}>
+          <button
+            className={`tl-btn ${isPlaying ? 'tl-btn--active-teal' : 'tl-btn--active-amber'}`}
+            style={{ width: 40 }}
+            onClick={() => (isPlaying ? pause() : play())}
+            disabled={!canPlay}
+            title={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? 'PAUSE' : 'PLAY'}
+          </button>
+          <button
+            className="tl-btn"
+            style={{ width: 40 }}
+            onClick={() => stop()}
+            disabled={!isPlaying && !isPaused}
+            title="Stop"
+          >
+            STOP
+          </button>
+          <button
+            className={`tl-btn ${isLooping ? 'tl-btn--active-amber' : ''}`}
+            style={{ width: 22 }}
+            onClick={toggleLoop}
+            title={isLooping ? 'Loop ON' : 'Loop OFF'}
+          >
+            L
+          </button>
+        </div>
+
         <div className="tl-topbar-spacer" />
         <div className="tl-time-readout">
           <span className="tl-time-current">{formatTime(playheadPosition)}</span>
@@ -509,11 +554,18 @@ export function TimelinePanel() {
           const sourceDuration = buf?.duration ?? 0
           const hasKeyframes = (animations[source.id]?.keyframes.length ?? 0) > 0
           const isExpanded = expandedLanes.has(source.id)
+          const isSelected = source.id === selectedSourceId
 
           return (
-            <div key={source.id} className="tl-track-group">
+            <div
+              key={source.id}
+              className={`tl-track-group ${isSelected ? 'tl-track-group--selected' : ''}`}
+            >
               {/* Main waveform row */}
-              <div className="tl-track-row">
+              <div
+                className={`tl-track-row ${isSelected ? 'tl-track-row--selected' : ''}`}
+                onClick={() => selectSource(source.id)}
+              >
                 {/* Track header */}
                 <div className="tl-header-cell">
                   <div className="tl-track-number">{index + 1}</div>
@@ -521,28 +573,29 @@ export function TimelinePanel() {
                     className="tl-track-led"
                     style={{
                       background: source.color,
-                      boxShadow: `0 0 6px ${source.color}50`,
+                      boxShadow: `0 0 6px ${source.color}${isSelected ? '90' : '50'}`,
+                      transform: isSelected ? 'scale(1.2)' : 'none',
                     }}
                   />
                   <div className="tl-track-label">{source.label}</div>
                   <div className="tl-track-btns">
                     <button
                       className={`tl-btn ${isExpanded ? 'tl-btn--active-amber' : ''}`}
-                      onClick={() => toggleLane(source.id)}
+                      onClick={(e) => { e.stopPropagation(); toggleLane(source.id) }}
                       title={isExpanded ? 'Hide automation' : `Show automation${hasKeyframes ? ` (${animations[source.id].keyframes.length} kf)` : ''}`}
                     >
                       A
                     </button>
                     <button
                       className={`tl-btn ${source.isMuted ? 'tl-btn--active-red' : ''}`}
-                      onClick={() => setSourceMuted(source.id, !source.isMuted)}
+                      onClick={(e) => { e.stopPropagation(); setSourceMuted(source.id, !source.isMuted) }}
                       title={source.isMuted ? 'Unmute' : 'Mute'}
                     >
                       M
                     </button>
                     <button
                       className={`tl-btn ${source.isSoloed ? 'tl-btn--active-amber' : ''}`}
-                      onClick={() => setSourceSoloed(source.id, !source.isSoloed)}
+                      onClick={(e) => { e.stopPropagation(); setSourceSoloed(source.id, !source.isSoloed) }}
                       title={source.isSoloed ? 'Unsolo' : 'Solo'}
                     >
                       S
@@ -554,7 +607,11 @@ export function TimelinePanel() {
                 <div
                   className="tl-waveform-area"
                   style={{ backgroundImage: gridBg }}
-                  onClick={handleTimelineClick}
+                  onClick={(e) => {
+                    // If clicking waveform directly, we might want to seek OR select.
+                    // Let's make it so clicking it selects, but we also handle the seek logic.
+                    handleTimelineClick(e)
+                  }}
                 >
                   {sourceDuration > 0 && (
                     <WaveformRow

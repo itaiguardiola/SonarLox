@@ -66,6 +66,7 @@ export interface AudioSource {
   sineFrequency: number
   isMuted: boolean
   isSoloed: boolean
+  hasSeparatedStems?: boolean
 }
 
 /**

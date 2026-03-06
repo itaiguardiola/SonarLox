@@ -133,8 +133,9 @@ async function addStemsToSession(originalSourceId: string, stems: StemData[]) {
   // Record history once before the batch
   store.recordHistory('Spatialise stems')
 
-  // Mute original
+  // Mute original and mark as separated
   store.setSourceMuted(originalSourceId, true)
+  store.setSourceSeparated(originalSourceId, true)
 
   // Initialize audio engine
   await audioEngine.init()

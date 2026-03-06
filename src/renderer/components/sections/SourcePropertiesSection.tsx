@@ -48,10 +48,23 @@ export function SourcePropertiesSection() {
       </div>
 
       {isFileSource && (
-        <>
+        selectedSource.audioFileName ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="readout-small" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {selectedSource.audioFileName}
+            </span>
+            <button
+              className="btn"
+              onClick={handleLoadAudio}
+              title="Replace audio file"
+              style={{ fontSize: 9, padding: '2px 6px', flexShrink: 0, opacity: 0.6 }}
+            >
+              Replace
+            </button>
+          </div>
+        ) : (
           <button className="btn" onClick={handleLoadAudio}>Load Audio</button>
-          {selectedSource.audioFileName && <span className="readout-small">{selectedSource.audioFileName}</span>}
-        </>
+        )
       )}
 
       {isToneSource && (

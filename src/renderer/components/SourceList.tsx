@@ -77,6 +77,8 @@ export function SourceList() {
         if (result) {
           await audioEngine.loadFile(newest.id, result.buffer)
           useAppStore.getState().setSourceAudioFileName(newest.id, result.name)
+          const friendlyName = result.name.replace(/\.[^.]+$/, '')
+          useAppStore.getState().setSourceLabel(newest.id, friendlyName)
           if (result.filePath) {
             useAppStore.getState().setSourceAudioFilePath(newest.id, result.filePath)
           }
@@ -398,6 +400,31 @@ export function SourceList() {
         const isSeparating = demucsStatus === 'separating'
         const slotsAvailable = DEFAULT_MAX_SOURCES - sources.length >= 4
 
+        if (sel.hasSeparatedStems && !isSeparating) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ flex: 1, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                Stems separated
+              </span>
+              <button
+                className="btn"
+                onClick={() => {
+                  if (!demucsProbe?.available) {
+                    setShowSetupModal(true)
+                  } else {
+                    separate(selectedSourceId)
+                  }
+                }}
+                disabled={!slotsAvailable}
+                title="Re-run stem separation"
+                style={{ fontSize: 9, padding: '2px 6px', flexShrink: 0, opacity: 0.6 }}
+              >
+                Re-split
+              </button>
+            </div>
+          )
+        }
+
         return (
           <button
             className="btn"
@@ -432,6 +459,7 @@ export function SourceList() {
       {!demucsProbe?.available && selectedSourceId && (() => {
         const sel = sources.find((s) => s.id === selectedSourceId)
         if (!sel || sel.sourceType !== 'file' || !sel.audioFileName) return null
+        if (sel.hasSeparatedStems) return null
         return (
           <span
             onClick={() => setShowSetupModal(true)}

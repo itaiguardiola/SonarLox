@@ -16,14 +16,21 @@ export interface SourceSlice {
   setSourceMuted: (id: SourceId, muted: boolean) => void
   setSourceSoloed: (id: SourceId, soloed: boolean) => void
   setSourceLabel: (id: SourceId, label: string) => void
+  setSourceSeparated: (id: SourceId, separated: boolean) => void
 }
 
-let nextSourceIndex = 1
+let nextSourceIndex = 0
+
+const TYPE_LABELS: Record<SourceType, string> = {
+  'file': 'Audio',
+  'tone': 'Tone',
+  'midi-track': 'MIDI',
+}
 
 function createDefaultSource(index: number, type: SourceType): AudioSource {
   return {
     id: crypto.randomUUID(),
-    label: `Source ${index}`,
+    label: `${TYPE_LABELS[type]} ${index}`,
     sourceType: type,
     position: [2 + (index - 1) * 1.5, 1, (index - 1) * 1.5],
     volume: 1.0,
@@ -129,4 +136,12 @@ export const createSourceSlice: StateCreator<AppState, [], [], SourceSlice> = (s
       isDirty: true,
     }))
   },
+
+  setSourceSeparated: (id, hasSeparatedStems) =>
+    set((state) => ({
+      sources: state.sources.map((s) =>
+        s.id === id ? { ...s, hasSeparatedStems } : s
+      ),
+      isDirty: true,
+    })),
 })
