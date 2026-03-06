@@ -1,6 +1,10 @@
 import type { SourceId } from '../types'
 import type { IAudioEngine, AnalyserSnapshot } from './IAudioEngine'
 import { SourceChannel } from './SourceChannel'
+import { parseMidi } from './MidiParser'
+import { renderMidiTrack } from './MidiSynth'
+import { isLoaded as isSoundFontLoaded, renderMidiTrackWithSoundFont } from './SoundFontPlayer'
+import { setTrack, setMidiBuffer, getMidiBuffer } from './midiTrackCache'
 
 /**
  * Implements the audio engine using Web Audio API for spatial audio playback.
@@ -63,6 +67,40 @@ class WebAudioEngine implements IAudioEngine {
     const channel = this.channels.get(id)!
     channel.stop()
     channel.audioBuffer = await this.ctx!.decodeAudioData(arrayBuffer)
+  }
+
+  /**
+   * Loads a MIDI file into the specified source channel and renders it to audio.
+   */
+  async loadMidiFile(id: SourceId, arrayBuffer: ArrayBuffer): Promise<void> {
+    await this.init()
+    if (!this.channels.has(id)) this.createChannel(id)
+    const channel = this.channels.get(id)!
+    channel.stop()
+
+    const tracks = parseMidi(arrayBuffer)
+    if (tracks.length === 0) throw new Error('No MIDI tracks found')
+    
+    // For simplicity, we just load the first track or merge them? 
+    // Usually MIDI files in SonarLox projects are single-track per source.
+    const track = tracks[0]
+    
+    // Cache track data and raw buffer
+    setTrack(id, track)
+    setMidiBuffer(id, arrayBuffer)
+
+    const buffer = isSoundFontLoaded()
+      ? await renderMidiTrackWithSoundFont(track)
+      : await renderMidiTrack(track)
+    
+    channel.audioBuffer = buffer
+  }
+
+  /**
+   * Returns the raw MIDI buffer for a specific source ID.
+   */
+  getMidiBuffer(id: SourceId): ArrayBuffer | undefined {
+    return getMidiBuffer(id)
   }
 
   /**

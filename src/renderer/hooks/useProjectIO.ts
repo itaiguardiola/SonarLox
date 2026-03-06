@@ -5,7 +5,6 @@ import { audioEngine } from '../audio/WebAudioEngine'
 import {
   buildManifest,
   serializeProjectState,
-  serializeAudioSources,
   deserializeProjectState,
   serializeTimeline,
   deserializeTimeline,
@@ -36,17 +35,28 @@ export function useProjectIO() {
     const pluginState = usePluginStore.getState().activePlugins
     stateObj.plugins = serializePluginState(pluginState)
     const stateJson = JSON.stringify(stateObj, null, 2)
-    const audioSourceMap = serializeAudioSources(appState.sources)
     const audioFiles: Array<{ name: string; wavBuffer: ArrayBuffer; meta: string }> = []
-    for (const entry of audioSourceMap) {
-      const audioBuf = audioEngine.getAudioBuffer(entry.id)
-      if (!audioBuf) continue
-      const source = appState.sources.find((s) => s.id === entry.id)
-      audioFiles.push({
-        name: entry.name,
-        wavBuffer: encodeWav(audioBuf),
-        meta: JSON.stringify({ originalFileName: source?.audioFileName ?? entry.name }),
-      })
+    for (let i = 0; i < appState.sources.length; i++) {
+      const source = appState.sources[i]
+      if (source.sourceType === 'file') {
+        const audioBuf = audioEngine.getAudioBuffer(source.id)
+        if (audioBuf) {
+          audioFiles.push({
+            name: `source_${i}.wav`,
+            wavBuffer: encodeWav(audioBuf),
+            meta: JSON.stringify({ originalFileName: source.audioFileName ?? `source_${i}.wav` }),
+          })
+        }
+      } else if (source.sourceType === 'midi-track') {
+        const midiBuf = audioEngine.getMidiBuffer(source.id)
+        if (midiBuf) {
+          audioFiles.push({
+            name: `source_${i}.mid`,
+            wavBuffer: midiBuf, // Reuse wavBuffer field for midi raw buffer
+            meta: JSON.stringify({ originalFileName: source.audioFileName ?? `source_${i}.mid` }),
+          })
+        }
+      }
     }
     const duration = audioEngine.getDuration()
     const sampleRate = 44100
@@ -107,11 +117,11 @@ export function useProjectIO() {
     const deserialized = deserializeProjectState(result.state)
     const animations = deserializeTimeline(result.timeline)
 
-    const audioFileMap = new Map<number, { buffer: ArrayBuffer; meta: Record<string, unknown> }>()
+    const audioFileMap = new Map<number, { buffer: ArrayBuffer; meta: Record<string, unknown>; name: string }>()
     for (const af of result.audioFiles) {
-      const match = af.name.match(/source_(\d+)\.wav/)
+      const match = af.name.match(/source_(\d+)\.(wav|mid)/)
       if (match) {
-        audioFileMap.set(parseInt(match[1]), { buffer: af.buffer, meta: af.meta })
+        audioFileMap.set(parseInt(match[1]), { buffer: af.buffer, meta: af.meta, name: af.name })
       }
     }
 
@@ -121,14 +131,18 @@ export function useProjectIO() {
       const source = deserialized.sources[i]
       audioEngine.createChannel(source.id)
 
-      const audioFile = audioFileMap.get(i)
-      if (audioFile) {
+      const fileData = audioFileMap.get(i)
+      if (fileData) {
         try {
-          await audioEngine.loadFile(source.id, audioFile.buffer)
-          const meta = audioFile.meta as { originalFileName?: string }
-          source.audioFileName = meta.originalFileName ?? `source_${i}.wav`
+          if (fileData.name.endsWith('.mid')) {
+            await audioEngine.loadMidiFile(source.id, fileData.buffer)
+          } else {
+            await audioEngine.loadFile(source.id, fileData.buffer)
+          }
+          const meta = fileData.meta as { originalFileName?: string }
+          source.audioFileName = meta.originalFileName ?? fileData.name
         } catch (err) {
-          console.error(`Failed to decode audio for source ${i}:`, err)
+          console.error(`Failed to load file for source ${i}:`, err)
         }
       }
     }

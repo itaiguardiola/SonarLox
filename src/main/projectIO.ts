@@ -46,7 +46,8 @@ export async function saveProject(data: ProjectSaveInput): Promise<{ saved: bool
 
     for (const af of data.audioFiles) {
       archive.append(Buffer.from(af.wavBuffer), { name: `audio/${af.name}` })
-      archive.append(af.meta, { name: `audio/${af.name.replace('.wav', '.meta.json')}` })
+      const ext = af.name.endsWith('.mid') ? '.mid' : '.wav'
+      archive.append(af.meta, { name: `audio/${af.name.replace(ext, '.meta.json')}` })
     }
 
     archive.finalize()
@@ -116,9 +117,11 @@ export async function openProject(filePath: string): Promise<ProjectOpenResult> 
 
         const audioFiles: AudioFileOutput[] = []
         for (const [name, buf] of entries) {
-          if (name.startsWith('audio/') && name.endsWith('.wav')) {
+          if (name.startsWith('audio/') && (name.endsWith('.wav') || name.endsWith('.mid'))) {
+            const isMidi = name.endsWith('.mid')
+            const ext = isMidi ? '.mid' : '.wav'
             const baseName = name.replace('audio/', '')
-            const metaName = name.replace('.wav', '.meta.json')
+            const metaName = name.replace(ext, '.meta.json')
             const metaBuf = entries.get(metaName)
             const meta = metaBuf ? JSON.parse(metaBuf.toString('utf-8')) : {}
 

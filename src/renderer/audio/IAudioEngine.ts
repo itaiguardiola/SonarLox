@@ -33,6 +33,16 @@ export interface IAudioEngine {
   loadFile(id: SourceId, buffer: ArrayBuffer): Promise<void>
 
   /**
+   * Loads a MIDI file into a source channel and renders it to audio.
+   */
+  loadMidiFile(id: SourceId, buffer: ArrayBuffer): Promise<void>
+
+  /**
+   * Returns the raw MIDI buffer for a source channel if available.
+   */
+  getMidiBuffer(id: SourceId): ArrayBuffer | undefined
+
+  /**
    * Plays a specific test tone through a source channel.
    */
   playTestTone(id: SourceId, type: 'sine' | 'pink-noise'): Promise<void>

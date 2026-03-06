@@ -117,10 +117,10 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
       event.stopPropagation()
       
       const source = getSource()
-      if (source) {
-        selectSource(sourceId)
-        // If synced, we can highlight/select logic
-      }
+      if (!source) return
+
+      selectSource(sourceId)
+      // If synced, we can highlight/select logic
 
       isDragging.current = true
       shiftHeld.current = event.shiftKey
@@ -128,8 +128,6 @@ export function SoundSource({ sourceId }: SoundSourceProps) {
       const el = event.target as HTMLElement
       if (el.setPointerCapture) el.setPointerCapture(event.pointerId)
 
-      const source = getSource()
-      if (!source) return
       const [sx, sy, sz] = source.position
       const spherePos = new Vector3(sx, sy, sz)
 
