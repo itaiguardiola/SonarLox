@@ -68,7 +68,6 @@ export function encodeFlac(audioBuffer: AudioBuffer): ArrayBuffer {
 
   for (let b = 0; b < numBlocks; b++) {
     const startFrame = b * blockSize
-    const endFrame = Math.min(startFrame + blockSize, numFrames)
     
     // Frame Header
     // Sync (14 bits): 11111111111110 (0xFFF8)
