@@ -3,6 +3,20 @@
   "version": "1.0.0",
   "description": "3D spatial audio editor with HRTF binaural spatialization",
   "main": "./out/main/index.js",
+  "build": {
+    "fileAssociations": [
+      {
+        "ext": "slx",
+        "name": "SonarLox Project",
+        "role": "Editor"
+      },
+      {
+        "ext": "sonarlox",
+        "name": "SonarLox Project (Legacy)",
+        "role": "Editor"
+      }
+    ]
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

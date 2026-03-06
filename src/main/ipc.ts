@@ -105,7 +105,7 @@ ipcMain.handle('project:save', async (_event, data: {
 ipcMain.handle('project:open', async () => {
   const result = await dialog.showOpenDialog({
     filters: [
-      { name: 'SonarLox Project', extensions: ['sonarlox'] },
+      { name: 'SonarLox Project', extensions: ['slx', 'sonarlox'] },
       { name: 'All Files', extensions: ['*'] }
     ],
     properties: ['openFile']
@@ -120,10 +120,20 @@ ipcMain.handle('project:open', async () => {
   }
 })
 
+ipcMain.handle('project:open-from-path', async (_event, filePath: string) => {
+  try {
+    const data = await openProject(filePath)
+    return { ...data, filePath }
+  } catch (err) {
+    console.error('Failed to open project from path:', err)
+    return null
+  }
+})
+
 ipcMain.handle('project:save-dialog', async () => {
   const result = await dialog.showSaveDialog({
-    filters: [{ name: 'SonarLox Project', extensions: ['sonarlox'] }],
-    defaultPath: 'untitled.sonarlox'
+    filters: [{ name: 'SonarLox Project', extensions: ['slx', 'sonarlox'] }],
+    defaultPath: 'untitled.slx'
   })
   if (result.canceled || !result.filePath) return null
   return result.filePath

@@ -12,12 +12,121 @@ import {
   deserializePluginState,
   gatherProjectAudioFiles,
 } from '../audio/projectSerializer'
+import type { ProjectOpenResult } from '../types'
 import { encodeWav } from '../audio/encodeWav'
 import { usePluginStore } from '../plugins/usePluginStore'
 import { loadPlugin, unloadPlugin } from '../plugins/pluginLoader'
 import { rebuildAllEffectChains } from '../plugins/effectChain'
 
 export function useProjectIO() {
+  /**
+   * Core logic to apply loaded project data to the application state and audio engine.
+   */
+  const loadProjectData = useCallback(async (result: ProjectOpenResult) => {
+    useTransportStore.getState().stop()
+
+    // Clean up current audio channels
+    for (const id of audioEngine.getChannelIds()) {
+      audioEngine.removeChannel(id)
+    }
+
+    const deserialized = deserializeProjectState(result.state)
+    const animations = deserializeTimeline(result.timeline)
+
+    // Map embedded audio/MIDI files by their source index
+    const audioFileMap = new Map<number, { buffer: ArrayBuffer; meta: Record<string, unknown>; name: string }>()
+    for (const af of result.audioFiles) {
+      const match = af.name.match(/source_(\d+)\.(wav|mid)/)
+      if (match) {
+        audioFileMap.set(parseInt(match[1]), { buffer: af.buffer, meta: af.meta, name: af.name })
+      }
+    }
+
+    await audioEngine.init()
+
+    // Create channels and load files
+    for (let i = 0; i < deserialized.sources.length; i++) {
+      const source = deserialized.sources[i]
+      audioEngine.createChannel(source.id)
+
+      const fileData = audioFileMap.get(i)
+      if (fileData) {
+        try {
+          if (fileData.name.endsWith('.mid')) {
+            await audioEngine.loadMidiFile(source.id, fileData.buffer)
+          } else {
+            await audioEngine.loadFile(source.id, fileData.buffer)
+          }
+          const meta = fileData.meta as { originalFileName?: string }
+          source.audioFileName = meta.originalFileName ?? fileData.name
+        } catch (err) {
+          console.error(`Failed to load file for source ${i}:`, err)
+        }
+      }
+    }
+
+    // Update global app state
+    useAppStore.setState({
+      sources: deserialized.sources,
+      selectedSourceId: deserialized.sources[0]?.id ?? null,
+      listenerY: deserialized.listenerY,
+      masterVolume: deserialized.masterVolume,
+      isLooping: deserialized.isLooping,
+      roomSize: deserialized.roomSize,
+      bpm: deserialized.bpm,
+      cameraPresets: deserialized.cameraPresets,
+      selectedOutputDevice: deserialized.selectedOutputDevice,
+      currentProjectPath: result.filePath,
+      projectTitle: result.manifest.title || 'Untitled',
+      animations,
+      isRecordingKeyframes: false,
+      isDirty: false,
+      videoFilePath: null,
+      videoFileName: deserialized.video.fileName,
+      videoOffset: deserialized.video.offset,
+      videoFrameRate: deserialized.video.frameRate,
+      videoOpacity: deserialized.video.opacity,
+      isVideoVisible: deserialized.video.visible,
+      videoScreenPosition: deserialized.video.screenPosition,
+      videoScreenScale: deserialized.video.screenScale,
+      videoScreenLocked: deserialized.video.screenLocked,
+      videoScreenVisible: deserialized.video.screenVisible,
+    })
+
+    // Update audio engine global parameters
+    audioEngine.setLooping(deserialized.isLooping)
+    audioEngine.setMasterVolume(deserialized.masterVolume)
+    audioEngine.setListenerY(deserialized.listenerY)
+
+    // Handle plugin restoration
+    const pluginStore = usePluginStore.getState()
+    for (const [id] of pluginStore.activePlugins) {
+      unloadPlugin(id)
+      pluginStore.deactivatePlugin(id)
+    }
+    
+    const savedPlugins = deserializePluginState(result.state)
+    if (savedPlugins.length > 0) {
+      const available = pluginStore.availablePlugins
+      for (const sp of savedPlugins) {
+        const manifest = available.find((m) => m.id === sp.pluginId)
+        if (!manifest) continue
+        try {
+          const instance = await loadPlugin(manifest)
+          instance.target = sp.target
+          instance.slot = sp.slot
+          instance.enabled = sp.enabled
+          for (const [paramId, value] of Object.entries(sp.parameters)) {
+            instance.parameters[paramId] = value
+            instance.plugin.setParameter(paramId, value)
+          }
+          pluginStore.activatePlugin(instance)
+        } catch { /* ignore failed plugin loads */ }
+      }
+      rebuildAllEffectChains()
+    }
+  }, [])
+
   const saveProject = useCallback(async (saveAs?: boolean) => {
     if (!window.api) return
 
@@ -87,105 +196,21 @@ export function useProjectIO() {
     }
 
     const result = await window.api.openProject()
-    if (!result) return
-
-    useTransportStore.getState().stop()
-
-    for (const id of audioEngine.getChannelIds()) {
-      audioEngine.removeChannel(id)
+    if (result) {
+      await loadProjectData(result)
     }
+  }, [saveProject, loadProjectData])
 
-    const deserialized = deserializeProjectState(result.state)
-    const animations = deserializeTimeline(result.timeline)
-
-    const audioFileMap = new Map<number, { buffer: ArrayBuffer; meta: Record<string, unknown>; name: string }>()
-    for (const af of result.audioFiles) {
-      const match = af.name.match(/source_(\d+)\.(wav|mid)/)
-      if (match) {
-        audioFileMap.set(parseInt(match[1]), { buffer: af.buffer, meta: af.meta, name: af.name })
-      }
+  /**
+   * Directly load a project from a given file path.
+   */
+  const loadProjectFile = useCallback(async (path: string) => {
+    if (!window.api?.openProjectFromPath) return
+    const result = await window.api.openProjectFromPath(path)
+    if (result) {
+      await loadProjectData(result)
     }
-
-    await audioEngine.init()
-
-    for (let i = 0; i < deserialized.sources.length; i++) {
-      const source = deserialized.sources[i]
-      audioEngine.createChannel(source.id)
-
-      const fileData = audioFileMap.get(i)
-      if (fileData) {
-        try {
-          if (fileData.name.endsWith('.mid')) {
-            await audioEngine.loadMidiFile(source.id, fileData.buffer)
-          } else {
-            await audioEngine.loadFile(source.id, fileData.buffer)
-          }
-          const meta = fileData.meta as { originalFileName?: string }
-          source.audioFileName = meta.originalFileName ?? fileData.name
-        } catch (err) {
-          console.error(`Failed to load file for source ${i}:`, err)
-        }
-      }
-    }
-
-    useAppStore.setState({
-      sources: deserialized.sources,
-      selectedSourceId: deserialized.sources[0]?.id ?? null,
-      listenerY: deserialized.listenerY,
-      masterVolume: deserialized.masterVolume,
-      isLooping: deserialized.isLooping,
-      roomSize: deserialized.roomSize,
-      bpm: deserialized.bpm,
-      cameraPresets: deserialized.cameraPresets,
-      selectedOutputDevice: deserialized.selectedOutputDevice,
-      currentProjectPath: result.filePath,
-      projectTitle: (result.manifest.title as string) || 'Untitled',
-      animations,
-      isRecordingKeyframes: false,
-      isDirty: false,
-      videoFilePath: null,
-      videoFileName: deserialized.video.fileName,
-      videoOffset: deserialized.video.offset,
-      videoFrameRate: deserialized.video.frameRate,
-      videoOpacity: deserialized.video.opacity,
-      isVideoVisible: deserialized.video.visible,
-      videoScreenPosition: deserialized.video.screenPosition,
-      videoScreenScale: deserialized.video.screenScale,
-      videoScreenLocked: deserialized.video.screenLocked,
-      videoScreenVisible: deserialized.video.screenVisible,
-    })
-
-    audioEngine.setLooping(deserialized.isLooping)
-    audioEngine.setMasterVolume(deserialized.masterVolume)
-    audioEngine.setListenerY(deserialized.listenerY)
-
-    const pluginStore = usePluginStore.getState()
-    for (const [id] of pluginStore.activePlugins) {
-      unloadPlugin(id)
-      pluginStore.deactivatePlugin(id)
-    }
-    
-    const savedPlugins = deserializePluginState(result.state)
-    if (savedPlugins.length > 0) {
-      const available = pluginStore.availablePlugins
-      for (const sp of savedPlugins) {
-        const manifest = available.find((m) => m.id === sp.pluginId)
-        if (!manifest) continue
-        try {
-          const instance = await loadPlugin(manifest)
-          instance.target = sp.target
-          instance.slot = sp.slot
-          instance.enabled = sp.enabled
-          for (const [paramId, value] of Object.entries(sp.parameters)) {
-            instance.parameters[paramId] = value
-            instance.plugin.setParameter(paramId, value)
-          }
-          pluginStore.activatePlugin(instance)
-        } catch { /* skip */ }
-      }
-      rebuildAllEffectChains()
-    }
-  }, [saveProject])
+  }, [loadProjectData])
 
   const newProject = useCallback(async () => {
     const appState = useAppStore.getState()
@@ -221,6 +246,8 @@ export function useProjectIO() {
         sineFrequency: 440,
         isMuted: false,
         isSoloed: false,
+        offset: 0,
+        duration: null,
       }],
       selectedSourceId: newId,
       listenerY: 0,
@@ -258,5 +285,5 @@ export function useProjectIO() {
     }
   }, [saveProject])
 
-  return { saveProject, openProject, newProject }
+  return { saveProject, openProject, newProject, loadProjectFile }
 }

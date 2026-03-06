@@ -23,6 +23,7 @@ if (process.contextIsolated) {
       audioFiles: Array<{ name: string; wavBuffer: ArrayBuffer; meta: string }>
     }) => ipcRenderer.invoke('project:save', data),
     openProject: () => ipcRenderer.invoke('project:open'),
+    openProjectFromPath: (path: string) => ipcRenderer.invoke('project:open-from-path', path),
     saveProjectDialog: () => ipcRenderer.invoke('project:save-dialog') as Promise<string | null>,
     showConfirmDialog: (options: {
       message: string
@@ -51,6 +52,11 @@ if (process.contextIsolated) {
       const handler = (_e: Electron.IpcRendererEvent, line: string) => cb(line)
       ipcRenderer.on('demucs:install-log', handler)
       return () => { ipcRenderer.removeListener('demucs:install-log', handler) }
+    },
+    onInitialProject: (cb: (path: string) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, path: string) => cb(path)
+      ipcRenderer.on('open-initial-project', handler)
+      return () => { ipcRenderer.removeListener('open-initial-project', handler) }
     },
   })
 }

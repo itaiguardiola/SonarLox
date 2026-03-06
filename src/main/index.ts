@@ -19,9 +19,18 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
+let mainWindow: BrowserWindow | null = null
+let initialFilePath: string | null = null
+
 async function handleCli(): Promise<boolean> {
   const args = process.argv.slice(app.isPackaged ? 1 : 2)
   
+  // Detect .slx file in arguments
+  const slxArg = args.find(arg => arg.toLowerCase().endsWith('.slx'))
+  if (slxArg) {
+    initialFilePath = resolve(slxArg)
+  }
+
   // --separate <input> [--out <dir>] [--model <model>] [--device <device>]
   const separateIdx = args.indexOf('--separate')
   if (separateIdx !== -1) {
@@ -90,7 +99,7 @@ async function handleCli(): Promise<boolean> {
 }
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
@@ -113,6 +122,15 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // Handle auto-opening the initial project
+  mainWindow.webContents.on('dom-ready', () => {
+    if (initialFilePath && mainWindow) {
+      mainWindow.webContents.send('open-initial-project', initialFilePath)
+      // Only do it once
+      initialFilePath = null
+    }
+  })
 }
 
 app.whenReady().then(async () => {

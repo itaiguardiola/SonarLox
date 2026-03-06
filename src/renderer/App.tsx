@@ -13,8 +13,20 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePluginStore } from './plugins/usePluginStore'
 
 export default function App() {
-  const { saveProject, openProject } = useProjectIO()
+  const { saveProject, openProject, loadProjectFile } = useProjectIO()
   const { showToast } = useToast()
+
+  // Handle auto-opening project from command line / file association
+  useEffect(() => {
+    if (!window.api?.onInitialProject) return
+    const cleanup = window.api.onInitialProject((path) => {
+      loadProjectFile(path).catch(err => {
+        console.error('Failed to auto-open project:', err)
+        showToast('Failed to open initial project', 'error')
+      })
+    })
+    return cleanup
+  }, [loadProjectFile, showToast])
 
   // Scan plugins at startup so they're available for project deserialization
   useEffect(() => {

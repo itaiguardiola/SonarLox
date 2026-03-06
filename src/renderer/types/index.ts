@@ -346,6 +346,7 @@ export interface ElectronAPI {
   saveWavFileToPath: (buffer: ArrayBuffer, filePath: string, expectedDir?: string) => Promise<SaveWavResult>
   saveProject: (data: ProjectSaveData) => Promise<{ saved: boolean; path: string }>
   openProject: () => Promise<ProjectOpenResult | null>
+  openProjectFromPath: (path: string) => Promise<ProjectOpenResult | null>
   saveProjectDialog: () => Promise<string | null>
   showConfirmDialog: (options: {
     message: string
@@ -367,6 +368,7 @@ export interface ElectronAPI {
   demucsInstall: () => Promise<{ success: boolean; error?: string }>
   onDemucsProgress: (cb: (data: DemucsProgress) => void) => () => void
   onDemucsInstallLog: (cb: (line: string) => void) => () => void
+  onInitialProject: (cb: (path: string) => void) => () => void
 }
 
 declare global {
